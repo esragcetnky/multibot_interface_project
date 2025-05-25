@@ -52,8 +52,8 @@ app.add_middleware(
 
 # List of bots with their start commands (update paths as needed)
 BOTS = {
-    "ask_me_anything": "uvicorn bots.ask_me_anything.main:app --host 0.0.0.0 --port {port} --reload",
-    "grammar_helper": "uvicorn bots.grammar_helper.main:app --host 0.0.0.0 --port {port} --reload",
+    "ask_me_anything": "uvicorn bots.ask_me_anything.main:app --host 0.0.0.0 --port {port}",
+    "grammar_helper": "uvicorn bots.grammar_helper.main:app --host 0.0.0.0 --port {port}",
     # "compare_files": "uvicorn bots.compare_files.main:app --host 0.0.0.0 --port {port} --reload",
     # "create_new_law_agreements": "uvicorn bots.create_new_law_agreements.main:app --host 0.0.0.0 --port {port} --reload",
 }

@@ -53,7 +53,7 @@ bot_name = st.sidebar.selectbox(
 )
 
 # Sliders for LLM parameters
-temperature = st.sidebar.slider("Temperature", 0.0, 1.0, 0.7, 0.05)
+temperature = st.sidebar.slider("Temperature", 0.0, 2.0, 0.7, 0.05)
 top_p = st.sidebar.slider("Top-p", 0.0, 1.0, 1.0, 0.05)
 
 # Dropdown for selecting the OpenAI model
@@ -128,39 +128,37 @@ if user_prompt := st.chat_input("Type your message..."):
             f"session_id={st.session_state.session_id}, temperature={temperature}, top_p={top_p}, model_name={model_name}"
         )
 
-        # Send the user's query to the middleware and get the response
-        response = send_query_to_middleware(
-            middleware_url=middleware_url,
-            bot_name=bot_name,
-            query=user_prompt,
-            user_name=st.session_state.user_name,
-            session_id=st.session_state.session_id,
-            access_key=access_key,
-            chat_history=st.session_state.chat_history,
-            temperature=temperature,
-            top_p=top_p,
-            model_name=model_name,
-            content_type="",
-            document_name="",
-            document="",
-            personalai_prompt="",
-            assistant_id="",
-            thread_id="",
-            message_file_id=""
-        )
-        logging.info(f"Middleware response: {response}")
-
-        # Display assistant response or error
-        if "error" in response:
-            assistant_reply = f" API Error: {response['error']}"
-            logging.info(f"Assistant reply is an error: {assistant_reply}")
-        else:
-            assistant_reply = response.get("response", "No response from bot.")
-            logging.info(f"Assistant reply received: {assistant_reply}")
-
         # Show assistant reply in the chat UI
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
+                    # Send the user's query to the middleware and get the response
+                response = send_query_to_middleware(
+                    middleware_url=middleware_url,
+                    bot_name=bot_name,
+                    query=user_prompt,
+                    user_name=st.session_state.user_name,
+                    session_id=st.session_state.session_id,
+                    access_key=access_key,
+                    chat_history=st.session_state.chat_history,
+                    temperature=temperature,
+                    top_p=top_p,
+                    model_name=model_name,
+                    content_type="",
+                    document_name="",
+                    document="",
+                    personalai_prompt="",
+                    assistant_id="",
+                    thread_id="",
+                    message_file_id=""
+                )
+                logging.info(f"Middleware response: {response}")
+                      # Display assistant response or error
+                if "error" in response:
+                    assistant_reply = f" API Error: {response['error']}"
+                    logging.info(f"Assistant reply is an error: {assistant_reply}")
+                else:
+                    assistant_reply = response.get("response", "No response from bot.")
+                    logging.info(f"Assistant reply received: {assistant_reply}")
                 st.markdown(assistant_reply)
         logging.info("Assistant reply displayed in chat.")
 
