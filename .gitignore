@@ -12,3 +12,4 @@ env/
 logs/middleware.log
 logs/streamlit_app.log
 logs/grammar_helper.log
+__pycache__
