@@ -12,7 +12,7 @@ env/
 logs/middleware.log
 logs/streamlit_app.log
 logs/grammar_helper.log
-middleware/__pycache__a
+middleware/__pycache__
 streamlit_app/__pycache__
 bots/grammar_helper/__pycache__
 bots/ask_me_anything/__pycache__

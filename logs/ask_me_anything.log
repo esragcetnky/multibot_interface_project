@@ -1,0 +1,39 @@
+2025-05-25 15:07:51,553 INFO root: Loading credentials from D:\Calismalar\Projeler\GitHubRepos\multibot_interface_project\shared\credentials.yml
+2025-05-25 15:07:51,554 INFO root: Credentials loaded successfully.
+2025-05-25 15:07:51,638 INFO root: OpenAI client initialized.
+2025-05-25 15:08:01,260 INFO root: Loading credentials from D:\Calismalar\Projeler\GitHubRepos\multibot_interface_project\shared\credentials.yml
+2025-05-25 15:08:01,261 INFO root: Credentials loaded successfully.
+2025-05-25 15:08:01,327 INFO root: OpenAI client initialized.
+2025-05-25 15:08:14,724 INFO root: Loading credentials from D:\Calismalar\Projeler\GitHubRepos\multibot_interface_project\shared\credentials.yml
+2025-05-25 15:08:14,725 INFO root: Credentials loaded successfully.
+2025-05-25 15:08:14,874 INFO root: OpenAI client initialized.
+2025-05-25 15:08:15,000 INFO root: Incoming request: GET http://localhost:63225/health
+2025-05-25 15:08:15,005 INFO root: Incoming request: POST http://localhost:63225/api/v1
+2025-05-25 15:08:15,016 INFO root: Bot endpoint /api/v1 HIT
+2025-05-25 15:08:15,016 INFO root: Bot received QueryInput:
+2025-05-25 15:08:15,016 INFO root: Query: can yu tell me about avrupa yakas\u0131 the series
+2025-05-25 15:08:15,016 INFO root: User: test_user, Session: 20250525150752_9f1acc41
+2025-05-25 15:08:15,016 INFO root: Model: gpt-4o-mini, Temp: 0.7, Top_p: 1.0
+2025-05-25 15:08:15,016 INFO root: Chat history: [ChatMessage(role='user', content='can yu tell me about avrupa yakas\u0131 the series')]
+2025-05-25 15:08:15,017 INFO root: Calling ask_me_anything service...
+2025-05-25 15:08:15,017 INFO root: ask_me_anything_service called with query='can yu tell me about avrupa yakas\u0131 the series', model_name='gpt-4o-mini', temperature=0.7, top_p=1.0
+2025-05-25 15:08:15,017 INFO root: Sending request to OpenAI API...
+2025-05-25 15:08:21,811 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-25 15:08:21,822 INFO root: Received response from OpenAI API.
+2025-05-25 15:08:21,822 INFO root: OpenAI API result: "Avrupa Yakas\u0131" is a Turkish television series that aired from 2004 to 2005. Created by the well-known Turkish producer and director Sinan Çetin, the show became quite popular during its run. The title translates to "European Side," referring to the European side of Istanbul, which is one of the two main parts of the city, the other being the Asian side.
+
+The series primarily focuses on the lives of its main character, a young man named "Murat," played by the actor Engin Günaydin, and his experiences living in the European side of Istanbul. The show blends comedy and drama, showcasing various aspects of urban life, relationships, and social issues through humorous and relatable storylines. 
+
+The cast also includes well-known Turkish actors such as Asl\u0131 Tando\u011fan, who plays the role of Murat's love interest, and other supporting characters that contribute to the comedic and dramatic elements of the series. "Avrupa Yakas\u0131" is often remembered for its witty dialogue, entertaining plots, and its portrayal of Istanbul's vibrant culture. 
+
+The series has left a lasting impact on Turkish television and is considered a classic among Turkish sitcoms.
+2025-05-25 15:08:21,822 INFO root: ask_me_anything result: "Avrupa Yakas\u0131" is a Turkish television series that aired from 2004 to 2005. Created by the well-known Turkish producer and director Sinan Çetin, the show became quite popular during its run. The title translates to "European Side," referring to the European side of Istanbul, which is one of the two main parts of the city, the other being the Asian side.
+
+The series primarily focuses on the lives of its main character, a young man named "Murat," played by the actor Engin Günaydin, and his experiences living in the European side of Istanbul. The show blends comedy and drama, showcasing various aspects of urban life, relationships, and social issues through humorous and relatable storylines. 
+
+The cast also includes well-known Turkish actors such as Asl\u0131 Tando\u011fan, who plays the role of Murat's love interest, and other supporting characters that contribute to the comedic and dramatic elements of the series. "Avrupa Yakas\u0131" is often remembered for its witty dialogue, entertaining plots, and its portrayal of Istanbul's vibrant culture. 
+
+The series has left a lasting impact on Turkish television and is considered a classic among Turkish sitcoms.
+2025-05-25 15:08:51,259 INFO root: Loading credentials from D:\Calismalar\Projeler\GitHubRepos\multibot_interface_project\shared\credentials.yml
+2025-05-25 15:08:51,260 INFO root: Credentials loaded successfully.
+2025-05-25 15:08:51,388 INFO root: OpenAI client initialized.

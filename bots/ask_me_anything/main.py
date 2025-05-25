@@ -63,14 +63,14 @@ async def handle_query(query_input: QueryInput):
     logging.info(f"Model: {query_input.model_name}, Temp: {query_input.temperature}, Top_p: {query_input.top_p}")
     logging.info(f"Chat history: {query_input.chat_history}")
     try:
-        logging.info("Calling grammar_correction_service...")
+        logging.info("Calling ask_me_anything service...")
         result = ask_me_anything_service(
             query=query_input.query,
             model_name=query_input.model_name,
             temperature=query_input.temperature,
             top_p=query_input.top_p
         )
-        logging.info(f"grammar_correction_service result: {result}")
+        logging.info(f"ask_me_anything result: {result}")
         return {"response": result}
     except Exception as e:
         logging.error("Internal bot error: %s", str(e), exc_info=True)

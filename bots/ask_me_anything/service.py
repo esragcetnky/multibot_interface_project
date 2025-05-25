@@ -2,7 +2,6 @@ import yaml
 import os
 import logging
 from openai import OpenAI
-from openai.types.chat import ChatCompletionMessageParam
 
 # Set up logging
 LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
