@@ -1,0 +1,14 @@
+*.yml
+.venv/ 
+venv/ 
+.vscode/
+environment
+chromadb_vectordb
+chromdb_rag_example
+chroma_langchain_db/
+models/
+env/
+.env/
+logs/middleware.log
+logs/streamlit_app.log
+logs/grammar_helper.log
