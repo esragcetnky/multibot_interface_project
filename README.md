@@ -3,7 +3,7 @@
 A modular AI platform featuring multiple bots accessed via a Streamlit frontend and FastAPI backend middleware. Users can choose different bots such as `Ask Me Anything`, `Grammar Helper`, `Compare Files`, and `Agreement Generator`, with history management and customizable parameters like temperature.
 
 ---
-
+![alt text](data/image.png)
 ## Project Architecture
 
 ```
