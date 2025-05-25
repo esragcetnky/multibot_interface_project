@@ -118,3 +118,13 @@ async def handle_query(query_input: QueryInput):
     except Exception as e:
         logging.error("Internal bot error: %s", str(e), exc_info=True)
         return {"error": "Internal bot error", "details": str(e)}
+    
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint to verify if the middleware is running.
+    Returns:
+        dict: Status message.
+    """
+    return {"status": "ok", "message": "Middleware is running."}
