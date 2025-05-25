@@ -1,3 +1,8 @@
+# ==============================================================================
+# SECTION 1: Imports and Logging Setup
+# This section imports required modules and sets up logging for the Grammar Helper bot.
+# ==============================================================================
+
 import os
 import logging
 from fastapi import FastAPI, Request
@@ -7,7 +12,7 @@ from typing import List, Optional, Dict, Any
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
-# Set up logging
+# Set up logging directory and file
 LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
 os.makedirs(LOGS_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOGS_DIR, "grammar_helper.log")
@@ -18,12 +23,24 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s"
 )
 
+# ==============================================================================
+# SECTION 2: FastAPI App and Pydantic Models
+# This section initializes the FastAPI app and defines request/response models.
+# ==============================================================================
+
 app = FastAPI()
+
 class ChatMessage(BaseModel):
+    """
+    Model for a single chat message in the chat history.
+    """
     role: str
     content: str
 
 class QueryInput(BaseModel):
+    """
+    Model for the input to the grammar helper bot.
+    """
     query: str
     user_name: Optional[str] = ""
     session_id: Optional[str] = ""
@@ -40,22 +57,47 @@ class QueryInput(BaseModel):
     message_file_id: Optional[str] = ""
     model_name: Optional[str] = "gpt-4o-mini"
 
+# ==============================================================================
+# SECTION 3: Middleware and Exception Handlers
+# This section logs all incoming requests and handles global exceptions.
+# ==============================================================================
+
 @app.middleware("http")
 async def log_all_requests(request: Request, call_next):
+    """
+    Middleware to log all incoming HTTP requests.
+    """
     logging.info(f"Incoming request: {request.method} {request.url}")
     response = await call_next(request)
     return response
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler to log and return errors as JSON responses.
+    """
     logging.error(f"Global exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc)},
     )
 
+# ==============================================================================
+# SECTION 4: Bot Endpoint
+# This section defines the main /api/v1 endpoint for grammar correction.
+# ==============================================================================
+
 @app.post("/api/v1")
 async def handle_query(query_input: QueryInput):
+    """
+    Handle incoming grammar correction requests.
+
+    Args:
+        query_input (QueryInput): The input payload for grammar correction.
+
+    Returns:
+        dict: The response containing the corrected text or error details.
+    """
     logging.info("Bot endpoint /api/v1 HIT")
     logging.info(f"Bot received QueryInput:")
     logging.info(f"Query: {query_input.query}")
@@ -64,6 +106,7 @@ async def handle_query(query_input: QueryInput):
     logging.info(f"Chat history: {query_input.chat_history}")
     try:
         logging.info("Calling grammar_correction_service...")
+        # Call the grammar correction service with the provided parameters
         result = grammar_correction_service(
             query=query_input.query,
             model_name=query_input.model_name,
