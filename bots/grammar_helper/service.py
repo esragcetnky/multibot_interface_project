@@ -1,12 +1,24 @@
 # ==============================================================================
 # SECTION 1: Imports and Logging Setup
-# This section imports required modules and sets up logging for the Ask Me Anything service.
+# This section imports required modules and sets up logging for the Grammar Helper service.
 # ==============================================================================
 # -*- coding: utf-8 -*-
 import yaml
 import os
 import logging
+import base64
 from openai import OpenAI
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.schema import Document
+
+# ==============================================================================
+# SECTION 2: Logging Configuration
+# This section configures logging for the Grammar Helper bot.
+# ==============================================================================
+
+# Vectorstore path for storing indexed documents
+VECTORSTORE_PATH = "data/vectorstores/grammar_helper"
 
 # Set up logging directory and file
 LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
@@ -21,7 +33,7 @@ logging.basicConfig(
 )
 
 # ==============================================================================
-# SECTION 2: Credentials and OpenAI Client Initialization
+# SECTION 3: Credentials and OpenAI Client Initialization
 # This section loads API credentials and initializes the OpenAI client.
 # ==============================================================================
 
@@ -39,47 +51,152 @@ client = OpenAI(api_key=credentials["openai_api_key"])
 logging.info("OpenAI client initialized.")
 
 # ==============================================================================
-# SECTION 3: Grammar Correction Service
-# This section defines the main function for answering questions using OpenAI API.
+# SECTION 4: Vectorstore Management
+# This section handles loading, saving, and indexing documents in the vectorstore.
 # ==============================================================================
 
-def grammar_correction_service(query : str,
-                            user_name : str = "",
-                            session_id : str = "",
-                            access_key : str = "",
-                            chat_history : list = [],
-                            content_type : str = "",
-                            document_name : str = "",
-                            document : str = "",
-                            top_p : float = 1.0,
-                            temperature :float = 0.7,            
-                            personalai_prompt : str = "",
-                            assistant_id : str  = "",
-                            thread_id : str = "",
-                            message_file_id : str = "",
-                            model_name : str = "gpt-4o-mini") -> str:    
+def load_vectorstore():
+    """
+    Load the FAISS vectorstore from disk if it exists.
+    Returns:
+        FAISS vectorstore object or None if not found.
+    """
+    index_file = os.path.join(VECTORSTORE_PATH, "index.faiss")
+    if os.path.exists(index_file):
+        return FAISS.load_local(VECTORSTORE_PATH, OpenAIEmbeddings())
+    return None
+
+def save_vectorstore(vectorstore):
+    """
+    Save the FAISS vectorstore to disk.
+    Args:
+        vectorstore: The FAISS vectorstore object to save.
+    """
+    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
+    vectorstore.save_local(VECTORSTORE_PATH)
+
+def index_uploaded_document(document_text: str, document_name: str) -> None:
+    """
+    Index a new document into the vectorstore.
+    Args:
+        document_text (str): The text content of the document.
+        document_name (str): The name of the document file.
+    """
+    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
+    new_doc = Document(page_content=document_text, metadata={"source": document_name})
+
+    vectorstore = load_vectorstore()
+
+    if vectorstore:
+        vectorstore.add_documents([new_doc])
+        logging.info(f"Added document to existing vectorstore: {document_name}")
+    else:
+        embeddings = OpenAIEmbeddings()
+        vectorstore = FAISS.from_documents([new_doc], embeddings)
+        logging.info(f"Created new vectorstore with document: {document_name}")
+
+    save_vectorstore(vectorstore)
+
+def decode_and_index_document(document_b64: str, document_name: str):
+    """
+    Decode a base64-encoded document and index it in the vectorstore.
+    Args:
+        document_b64 (str): Base64-encoded document content.
+        document_name (str): Name of the uploaded document file.
+    """
+    try:
+        document_text = base64.b64decode(document_b64).decode("utf-8")
+        index_uploaded_document(document_text, document_name)
+        logging.info(f"Indexed uploaded document: {document_name}")
+    except Exception as e:
+        logging.error(f"Failed to decode or index uploaded document: {e}", exc_info=True)
+
+def retrieve_relevant_context(query: str, k: int = 3) -> str:
+    """
+    Retrieve top-k relevant chunks from the vectorstore for the given query.
+    Args:
+        query (str): The user's query.
+        k (int): Number of relevant chunks to retrieve.
+    Returns:
+        str: Concatenated relevant context.
+    """
+    vectorstore = load_vectorstore()
+    if not vectorstore:
+        logging.info("No vectorstore found. Returning empty context.")
+        return ""
+    docs_and_scores = vectorstore.similarity_search_with_score(query, k=k)
+    context = "\n".join([doc.page_content for doc, _ in docs_and_scores])
+    return context
+
+# ==============================================================================
+# SECTION 5: Grammar Correction Service (RAG-enabled)
+# This section defines the main function for answering questions using OpenAI API and vectorstore context.
+# ==============================================================================
+
+def grammar_correction_service(
+    query: str,
+    user_name: str = "",
+    session_id: str = "",
+    access_key: str = "",
+    chat_history: list = [],
+    content_type: str = "",
+    document_name: str = "",
+    document: str = "",
+    top_p: float = 1.0,
+    temperature: float = 0.7,
+    personalai_prompt: str = "",
+    assistant_id: str = "",
+    thread_id: str = "",
+    message_file_id: str = "",
+    model_name: str = "gpt-4o-mini"
+) -> str:
     """
     Grammar correction service that uses OpenAI's chat completion API to answer questions.
-    This function sends a user's query to the OpenAI API and returns the response.
+    Handles document indexing, context retrieval, and OpenAI API interaction.
 
     Args:
         query (str): The user's question.
-        model_name (str): The OpenAI model to use.
-        temperature (float): Sampling temperature.
+        user_name (str): The name or identifier of the user.
+        session_id (str): The session identifier for tracking conversation.
+        access_key (str): Access key for authentication or authorization.
+        chat_history (list): List of previous chat messages.
+        content_type (str): MIME type of the uploaded document.
+        document_name (str): Name of the uploaded document file.
+        document (str): Base64-encoded content of the uploaded document.
         top_p (float): Nucleus sampling parameter.
+        temperature (float): Sampling temperature.
+        personalai_prompt (str): Custom prompt for personal AI context.
+        assistant_id (str): Identifier for a specific assistant (if used).
+        thread_id (str): Identifier for a conversation thread (if used).
+        message_file_id (str): Identifier for a message file (if used).
+        model_name (str): The OpenAI model to use.
 
     Returns:
         str: The answer from the OpenAI API or an error message.
     """
     logging.info(f"grammar_correction_service called with query='{query}', model_name='{model_name}', temperature={temperature}, top_p={top_p}")
 
-    # Define the system prompt for the assistant
+    # 1. If a document is uploaded, decode and index it
+    if document and document_name:
+        decode_and_index_document(document, document_name)
+
+    # 2. Retrieve relevant context from vectorstore
+    context = ""
+    try:
+        context = retrieve_relevant_context(query)
+        logging.info(f"Retrieved context for query: {context}")
+    except Exception as e:
+        logging.warning(f"Could not retrieve context: {e}")
+
+    # 3. Compose the system prompt with context if available
     system_prompt = (
         "You are a helpful assistant that provides grammar corrections and suggestions. "
         "Your task is to analyze the user's query and provide a corrected version if necessary. "
-        "If the query is already grammatically correct, simply return it unchanged."
+        "If the query is already grammatically correct, simply return it unchanged. "
         "Only respond with the corrected text, without any additional explanations or comments."
     )
+    if context:
+        system_prompt += f"\n\nRelevant context:\n{context}"
 
     try:
         logging.info("Sending request to OpenAI API...")

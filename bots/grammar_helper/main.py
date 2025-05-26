@@ -12,6 +12,11 @@ from typing import List, Optional, Dict, Any
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
+# ==============================================================================
+# SECTION 2: Logging Configuration
+# This section configures logging for the Ask Me Anything bot.
+# ==============================================================================
+
 # Set up logging directory and file
 LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
 os.makedirs(LOGS_DIR, exist_ok=True)
@@ -25,12 +30,15 @@ logging.basicConfig(
 )
 
 # ==============================================================================
-# SECTION 2: FastAPI App and Pydantic Models
-# This section initializes the FastAPI app and defines request/response models.
+# SECTION 3: FastAPI App Initialization
+# This section initializes the FastAPI app and sets up the router for the Ask Me Anything bot.
 # ==============================================================================
-
 app = FastAPI()
 
+# ==============================================================================
+# SECTION 4: Pydantic Models
+# This section defines the Pydantic models for request and response validation.
+# ==============================================================================
 class ChatMessage(BaseModel):
     """
     Model for a single chat message in the chat history.
@@ -59,7 +67,29 @@ class QueryInput(BaseModel):
     model_name: Optional[str] = "gpt-4o-mini"
 
 # ==============================================================================
-# SECTION 3: Middleware and Exception Handlers
+# SECTION 5: Health Check Endpoints
+# This section defines the root and health check endpoints for the Ask Me Anything bot.
+# ==============================================================================
+@app.get("/")
+async def root():
+    """
+    Root endpoint to verify if the middleware is running.
+    Returns:
+        dict: Welcome message.
+    """
+    return {"message": "Welcome to the Ask Me Anything bot. Use /docs for API documentation."}
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint to verify if the middleware is running.
+    Returns:
+        dict: Status message.
+    """
+    return {"status": "ok", "message": "Ask me anything is running."}
+
+# ==============================================================================
+# SECTION 6: Middleware and Exception Handlers
 # This section logs all incoming requests and handles global exceptions.
 # ==============================================================================
 
@@ -84,7 +114,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ==============================================================================
-# SECTION 4: Bot Endpoint
+# SECTION 7: Bot Endpoint
 # This section defines the main /api/v1 endpoint for grammar correction.
 # ==============================================================================
 
@@ -131,12 +161,3 @@ async def handle_query(query_input: QueryInput):
         logging.error("Internal bot error: %s", str(e), exc_info=True)
         return {"error": "Internal bot error", "details": str(e)}
     
-
-@app.get("/health")
-async def health_check():
-    """
-    Health check endpoint to verify if the middleware is running.
-    Returns:
-        dict: Status message.
-    """
-    return {"status": "ok", "message": "Middleware is running."}

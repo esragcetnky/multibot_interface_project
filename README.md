@@ -145,4 +145,7 @@ Specify your license here.
 
 ## Contact
 
-For questions or contributions, please open an issue or contact the maintainer.
+For any questions or suggestions, feel free to reach out:
+
+  - Email: esragcetinkaya@gmail.com
+  - Linkedin : [esragcetinkaya](https://www.linkedin.com/in/esra-gul-cetinkaya/?locale=en_US)
