@@ -1,0 +1,230 @@
+# ==============================================================================
+# SECTION 1: Imports and Logging Setup
+# This section imports required modules and sets up logging for the Ask Me Anything service.
+# ==============================================================================
+# -*- coding: utf-8 -*-
+import yaml
+import os
+import logging
+import base64
+from openai import OpenAI
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.schema import Document
+
+# ==============================================================================
+# SECTION 2: Logging Configuration
+# This section configures logging for the Ask Me Anything bot.
+# ==============================================================================
+
+# Vectorstore path for storing indexed documents
+VECTORSTORE_PATH = "data/vectorstores/ask_me_anything"
+
+# Set up logging directory and file
+LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
+os.makedirs(LOGS_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOGS_DIR, "ask_me_anything.log")
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,  # Set to INFO to capture info logs
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    encoding="utf-8"
+)
+
+# ==============================================================================
+# SECTION 3: Credentials and OpenAI Client Initialization
+# This section loads API credentials and initializes the OpenAI client.
+# ==============================================================================
+
+# Load credentials from YAML file
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+CREDENTIALS_PATH = os.path.join(PROJECT_ROOT, "shared", "credentials.yml")
+
+logging.info(f"Loading credentials from {CREDENTIALS_PATH}")
+with open(CREDENTIALS_PATH, "r") as file:
+    credentials = yaml.safe_load(file)
+logging.info("Credentials loaded successfully.")
+
+# Initialize OpenAI client with API key
+client = OpenAI(api_key=credentials["openai_api_key"])
+logging.info("OpenAI client initialized.")
+
+# ==============================================================================
+# SECTION 4: Vectorstore Management
+# This section handles loading, saving, and indexing documents in the vectorstore.
+# ==============================================================================
+
+def ensure_vectorstore_exists():
+    """
+    Ensure that the vectorstore directory exists.
+    If it does not exist, create it.
+    """
+    if not os.path.exists(VECTORSTORE_PATH):
+        os.makedirs(VECTORSTORE_PATH)
+        logging.info(f"Created vectorstore directory at {VECTORSTORE_PATH}")
+    else:
+        logging.info(f"Vectorstore directory already exists at {VECTORSTORE_PATH}")
+
+def load_vectorstore():
+    """
+    Load the FAISS vectorstore from disk if it exists.
+    Returns:
+        FAISS vectorstore object or None if not found.
+    """
+    index_file = os.path.join(VECTORSTORE_PATH, "index.faiss")
+    if os.path.exists(index_file):
+        return FAISS.load_local(VECTORSTORE_PATH, OpenAIEmbeddings())
+    return None
+
+def save_vectorstore(vectorstore):
+    """
+    Save the FAISS vectorstore to disk.
+    Args:
+        vectorstore: The FAISS vectorstore object to save.
+    """
+    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
+    vectorstore.save_local(VECTORSTORE_PATH)
+
+def index_uploaded_document(document_text: str, document_name: str) -> None:
+    """
+    Index a new document into the vectorstore.
+    Args:
+        document_text (str): The text content of the document.
+        document_name (str): The name of the document file.
+    """
+    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
+    new_doc = Document(page_content=document_text, metadata={"source": document_name})
+
+    vectorstore = load_vectorstore()
+
+    if vectorstore:
+        vectorstore.add_documents([new_doc])
+        logging.info(f"Added document to existing vectorstore: {document_name}")
+    else:
+        embeddings = OpenAIEmbeddings()
+        vectorstore = FAISS.from_documents([new_doc], embeddings)
+        logging.info(f"Created new vectorstore with document: {document_name}")
+
+    save_vectorstore(vectorstore)
+
+def decode_and_index_document(document_b64: str, document_name: str):
+    """
+    Decode a base64-encoded document and index it in the vectorstore.
+    Args:
+        document_b64 (str): Base64-encoded document content.
+        document_name (str): Name of the uploaded document file.
+    """
+    try:
+        document_text = base64.b64decode(document_b64).decode("utf-8")
+        index_uploaded_document(document_text, document_name)
+        logging.info(f"Indexed uploaded document: {document_name}")
+    except Exception as e:
+        logging.error(f"Failed to decode or index uploaded document: {e}", exc_info=True)
+
+def retrieve_relevant_context(query: str, k: int = 3) -> str:
+    """
+    Retrieve top-k relevant chunks from the vectorstore for the given query.
+    Args:
+        query (str): The user's query.
+        k (int): Number of relevant chunks to retrieve.
+    Returns:
+        str: Concatenated relevant context.
+    """
+    vectorstore = load_vectorstore()
+    if not vectorstore:
+        logging.info("No vectorstore found. Returning empty context.")
+        return ""
+    docs_and_scores = vectorstore.similarity_search_with_score(query, k=k)
+    context = "\n".join([doc.page_content for doc, _ in docs_and_scores])
+    return context
+
+# ==============================================================================
+# SECTION 5: Ask Me Anything Service
+# This section defines the main function for answering questions using OpenAI API.
+# ==============================================================================
+
+def ask_me_anything_service(
+    query: str,
+    user_name: str = "",
+    session_id: str = "",
+    access_key: str = "",
+    chat_history: list = [],
+    content_type: str = "",
+    document_name: str = "",
+    document: str = "",
+    top_p: float = 1.0,
+    temperature: float = 0.7,
+    personalai_prompt: str = "",
+    assistant_id: str = "",
+    thread_id: str = "",
+    message_file_id: str = "",
+    model_name: str = "gpt-4o-mini"
+) -> str:
+    """
+    Main service function for the Ask Me Anything bot.
+    Handles document indexing, context retrieval, and OpenAI API interaction.
+
+    Args:
+        query (str): The user's question or prompt.
+        user_name (str): The name or identifier of the user.
+        session_id (str): The session identifier for tracking conversation.
+        access_key (str): Access key for authentication or authorization.
+        chat_history (list): List of previous chat messages.
+        content_type (str): MIME type of the uploaded document.
+        document_name (str): Name of the uploaded document file.
+        document (str): Base64-encoded content of the uploaded document.
+        top_p (float): Nucleus sampling parameter for OpenAI completion.
+        temperature (float): Sampling temperature for OpenAI completion.
+        personalai_prompt (str): Custom prompt for personal AI context.
+        assistant_id (str): Identifier for a specific assistant (if used).
+        thread_id (str): Identifier for a conversation thread (if used).
+        message_file_id (str): Identifier for a message file (if used).
+        model_name (str): The name of the OpenAI model to use.
+
+    Returns:
+        str: The response from the OpenAI API or an error message.
+    """
+    logging.info(f"ask_me_anything_service called with query='{query}', model_name='{model_name}', temperature={temperature}, top_p={top_p}")
+
+    # 1. If a document is uploaded, decode and index it
+    if document and document_name:
+        decode_and_index_document(document, document_name)
+
+    # 2. Retrieve relevant context from vectorstore
+    context = ""
+    try:
+        context = retrieve_relevant_context(query)
+        logging.info(f"Retrieved context for query: {context}")
+    except Exception as e:
+        logging.warning(f"Could not retrieve context: {e}")
+
+    # 3. Compose the system prompt with context if available
+    system_prompt = (
+        "You are a helpful assistant that can answer any question accurately and concisely. "
+        "Your responses should be informative and relevant to the user's query. "
+        "If you don't know the answer, it's okay to say so. "
+        "You should always strive to provide the best possible answer based on the information available."
+    )
+    if context:
+        system_prompt += f"\n\nRelevant context:\n{context}"
+
+    try:
+        logging.info("Sending request to OpenAI API...")
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                *chat_history,
+                {"role": "user", "content": query}
+            ],
+            temperature=temperature,
+            top_p=top_p
+        )
+        logging.info("Received response from OpenAI API.")
+        result = response.choices[0].message.content.strip()
+        logging.info(f"OpenAI API result: {result}")
+        return result
+    except Exception as e:
+        logging.error("Error calling OpenAI API: %s", str(e), exc_info=True)
+        return f"Error calling OpenAI API: {str(e)}"
