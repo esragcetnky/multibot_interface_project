@@ -34,3 +34,8 @@ bots/grammar_helper/__pycache__
 bots/ask_me_anything/__pycache__
 bots/compare_files/__pycache__
 bots/agreement_generator/__pycache__
+
+# database files
+data/
+data/uploads/*
+data/vector_db/*

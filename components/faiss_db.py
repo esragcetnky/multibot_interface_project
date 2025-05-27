@@ -161,7 +161,6 @@ def update_or_create_vector_db(data_folder: str, vector_db_path: str) -> str:
     Loads, splits, embeds all supported files in data_folder and updates/creates the FAISS vector DB.
     Returns a status message.
     """
-    ensure_folders_exist()
     docs = load_and_split_documents(data_folder)
     if not docs:
         return "No supported documents found."
