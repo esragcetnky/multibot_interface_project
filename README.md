@@ -3,49 +3,64 @@
 A modular AI platform featuring multiple bots accessed via a Streamlit frontend and FastAPI backend middleware. Users can choose different bots such as `Ask Me Anything`, `Grammar Helper`, `Compare Files`, and `Agreement Generator`, with history management and customizable parameters like temperature.
 
 ---
-![alt text](data/image.png)
-## Project Architecture
+
+![Platform Architecture](data/image.png)
+
+## Project Structure
 
 ```
 multibot_interface_project/
 │
-├── env/                        # Python virtual environment folder
-│
-├── streamlit_app/
-│   ├── app.py                  # Main Streamlit frontend interface
-│   └── utils.py                # Helper functions for Streamlit app
-│
-├── middleware/
-│   └── main.py                 # FastAPI middleware routing requests to bots
+├── .gitignore
+├── README.md
+├── requirements.txt
 │
 ├── bots/
+│   ├── agreement_generator/
+│   │   ├── main.py
+│   │   └── service.py
 │   ├── ask_me_anything/
-│   │   ├── main.py             # FastAPI app for Ask Me Anything bot
-│   │   └── service.py          # Logic for calling LLM and processing
-│   │
-│   ├── grammar_helper/
-│   │   ├── main.py             # FastAPI app for Grammar Helper bot
-│   │   └── service.py          # Logic for calling LLM and processing
-│   │
+│   │   ├── main.py
+│   │   └── service.py
 │   ├── compare_files/
-│   │   ├── main.py             # FastAPI app for Compare Files bot
-│   │   └── service.py          # Logic for file comparison
-│   │
-│   └── agreement_generator/
-│       ├── main.py             # FastAPI app for Agreement Generator bot
-│       └── service.py          # Logic for agreement generation
+│   │   ├── main.py
+│   │   └── service.py
+│   └── grammar_helper/
+│       ├── main.py
+│       └── service.py
 │
-├── shared/
-│   └── credentials.yml         # API keys and configuration for all bots
+├── components/
+│   ├── faiss_db.py
+│   ├── search_api.py
+│   └── utils.py
+│
+├── data/
+│   ├── image.png
+│   └── uploads/
+│
+├── env/
+│   ├── pyvenv.cfg
+│   ├── etc/
+│   ├── Include/
+│   ├── Lib/
+│   ├── Scripts/
+│   └── share/
 │
 ├── logs/
-│   ├── grammar_helper.log      # Logs for Grammar Helper bot
-│   ├── middleware.log          # Logs for Middleware
-│   └── streamlit_app.log       # Logs for Streamlit app
+│   ├── ask_me_anything.log
+│   ├── grammar_helper.log
+│   ├── middleware.log
+│   └── streamlit_app.log
 │
-├── requirements.txt            # Python dependencies for entire project
-├── README.md                   # This file
-└── .gitignore                  # Git ignore rules
+├── middleware/
+│   └── main.py
+│
+├── shared/
+│   └── credentials.yml
+│
+└── streamlit_app/
+    ├── app.py
+    └── __pycache__/
 ```
 
 ---
@@ -113,6 +128,7 @@ multibot_interface_project/
 - **Temperature and other LLM parameters** adjustable in sidebar.
 - **Middleware** to route requests from frontend to appropriate bot API.
 - **Centralized logging** in the `logs/` folder for each component.
+- **Document upload and retrieval** for context-aware responses (Ask Me Anything bot).
 
 ---
 
@@ -122,8 +138,10 @@ multibot_interface_project/
 - Logs are stored in the `logs/` folder:
   - `middleware.log` for middleware events and errors
   - `streamlit_app.log` for frontend events and errors
+  - `ask_me_anything.log` for Ask Me Anything bot logs
   - `grammar_helper.log` for Grammar Helper bot logs
 - Credentials and sensitive info must be kept private in `shared/credentials.yml`.
+- Uploaded files are stored in `data/uploads/`.
 
 ---
 
@@ -148,4 +166,4 @@ Specify your license here.
 For any questions or suggestions, feel free to reach out:
 
   - Email: esragcetinkaya@gmail.com
-  - Linkedin : [esragcetinkaya](https://www.linkedin.com/in/esra-gul-cetinkaya/?locale=en_US)
+  - Linkedin: [esragcetinkaya](https://www.linkedin.com/in/esra-gul-cetinkaya/?locale=en_US)
