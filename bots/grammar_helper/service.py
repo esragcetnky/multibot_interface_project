@@ -21,8 +21,8 @@ from langchain.schema import Document
 VECTORSTORE_PATH = "data/vectorstores/grammar_helper"
 
 # Set up logging directory and file
-LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
-os.makedirs(LOGS_DIR, exist_ok=True)
+WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+LOGS_DIR = os.path.join(WORKING_DIR, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "grammar_helper.log")
 
 logging.basicConfig(

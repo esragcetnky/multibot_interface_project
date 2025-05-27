@@ -17,8 +17,8 @@ from fastapi.responses import JSONResponse
 # ==============================================================================
 
 # Set up logging directory and file
-LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
-os.makedirs(LOGS_DIR, exist_ok=True)
+WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+LOGS_DIR = os.path.join(WORKING_DIR, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "ask_me_anything.log")
 
 logging.basicConfig(
@@ -56,7 +56,7 @@ class QueryInput(BaseModel):
     chat_history: Optional[List[dict]] = []
     content_type: Optional[str] = ""
     document_name: Optional[str] = ""
-    document: Optional[str] = ""
+    document_path : Optional[str] = ""
     top_p: Optional[float] = 1.0
     temperature: Optional[float] = 0.7
     personalai_prompt: Optional[str] = ""
@@ -130,7 +130,7 @@ async def handle_query(query_input: QueryInput):
             - chat_history (list of dict, optional): List of previous chat messages (each with 'role' and 'content').
             - content_type (str, optional): MIME type of the uploaded document (e.g., 'application/pdf').
             - document_name (str, optional): Name of the uploaded document file.
-            - document (str, optional): Base64-encoded content of the uploaded document.
+            - document_path (str, optional): Path to the uploaded document file.
             - top_p (float, optional): Nucleus sampling parameter for OpenAI completion.
             - temperature (float, optional): Sampling temperature for OpenAI completion.
             - personalai_prompt (str, optional): Custom prompt for personal AI context.
@@ -159,7 +159,7 @@ async def handle_query(query_input: QueryInput):
             chat_history=query_input.chat_history,     # Previous chat messages
             content_type=query_input.content_type,     # Uploaded document MIME type
             document_name=query_input.document_name,   # Uploaded document file name
-            document=query_input.document,             # Uploaded document (base64-encoded)
+            document_path =query_input.document_path,  # Path to the uploaded document file  
             top_p=query_input.top_p,                   # Nucleus sampling parameter
             temperature=query_input.temperature,       # Sampling temperature
             personalai_prompt=query_input.personalai_prompt, # Custom personal AI prompt

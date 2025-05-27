@@ -21,8 +21,8 @@ from langchain.schema import Document
 VECTORSTORE_PATH = "data/vectorstores/ask_me_anything"
 
 # Set up logging directory and file
-LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
-os.makedirs(LOGS_DIR, exist_ok=True)
+WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+LOGS_DIR = os.path.join(WORKING_DIR, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "ask_me_anything.log")
 
 logging.basicConfig(
@@ -108,20 +108,6 @@ def index_uploaded_document(document_text: str, document_name: str) -> None:
 
     save_vectorstore(vectorstore)
 
-def decode_and_index_document(document_b64: str, document_name: str):
-    """
-    Decode a base64-encoded document and index it in the vectorstore.
-    Args:
-        document_b64 (str): Base64-encoded document content.
-        document_name (str): Name of the uploaded document file.
-    """
-    try:
-        document_text = base64.b64decode(document_b64).decode("utf-8")
-        index_uploaded_document(document_text, document_name)
-        logging.info(f"Indexed uploaded document: {document_name}")
-    except Exception as e:
-        logging.error(f"Failed to decode or index uploaded document: {e}", exc_info=True)
-
 def retrieve_relevant_context(query: str, k: int = 3) -> str:
     """
     Retrieve top-k relevant chunks from the vectorstore for the given query.
@@ -152,7 +138,7 @@ def ask_me_anything_service(
     chat_history: list = [],
     content_type: str = "",
     document_name: str = "",
-    document: str = "",
+    document_path    : str = "",
     top_p: float = 1.0,
     temperature: float = 0.7,
     personalai_prompt: str = "",
@@ -186,10 +172,6 @@ def ask_me_anything_service(
         str: The response from the OpenAI API or an error message.
     """
     logging.info(f"ask_me_anything_service called with query='{query}', model_name='{model_name}', temperature={temperature}, top_p={top_p}")
-
-    # 1. If a document is uploaded, decode and index it
-    if document and document_name:
-        decode_and_index_document(document, document_name)
 
     # 2. Retrieve relevant context from vectorstore
     context = ""

@@ -19,15 +19,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from bots.ask_me_anything.main import router as ask_me_anything_router
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
 # This section configures logging for the middleware.
 # ==============================================================================
 
-LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
-os.makedirs(LOGS_DIR, exist_ok=True)
+WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+LOGS_DIR = os.path.join(WORKING_DIR, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "middleware.log")
 
 logging.basicConfig(
@@ -161,7 +160,7 @@ class QueryInput(BaseModel):
     chat_history: list = []
     content_type: str = ""
     document_name: str = ""
-    document: str = ""
+    document_path: str = ""      # Path to the uploaded file (optional)
     top_p: float = 1.0
     temperature: float = 0.7
     personalai_prompt: str = ""
@@ -220,6 +219,7 @@ async def route_to_bot(request: BotRequest) -> dict:
             logging.info(f"Sending to: {url}")
             logging.info("Payload received!")
 
+            # Forward all fields, including document and document_path
             response = await client.post(
                 url,
                 json=request.query_input.model_dump(),

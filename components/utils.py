@@ -14,8 +14,8 @@ import time
 import socket
 
 # Set up logging
-LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
-os.makedirs(LOGS_DIR, exist_ok=True)
+WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+LOGS_DIR = os.path.join(WORKING_DIR, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "streamlit_app.log")
 
 logging.basicConfig(
@@ -129,7 +129,7 @@ def send_query_to_middleware(
     chat_history,
     content_type="",
     document_name = "",
-    document= "",     
+    document_path = "",     
     top_p=1.0,
     temperature=0.7,   
     personalai_prompt = "",    
@@ -166,7 +166,7 @@ def send_query_to_middleware(
             "chat_history": chat_history,            
             "content_type": content_type,
             "document_name": document_name,            
-            "document": document,      
+            "document_path": document_path,      
             "top_p": top_p,       
             "temperature": temperature,            
             "personalai_prompt": personalai_prompt,            
@@ -212,3 +212,22 @@ def prepare_chat_history_for_api(chat_history):
         logging.warning("Prepared chat history is empty. Returning an empty list.")
         return []
     return prepared
+
+# ==============================================================================
+# SECTION 6: File Upload Handling
+# This section provides functions to handle file uploads, including saving uploaded files to the server.
+# ==============================================================================
+
+def save_uploaded_file(uploaded_file, session_id, bot_name="ask_me_anything"):
+    """
+    Save the uploaded file to the data/uploads directory and return its path and original name.
+    """
+    uploads_dir = os.path.join("data", "uploads", bot_name)
+    os.makedirs(uploads_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_id = str(uuid.uuid4())[:8]
+    safe_name = f"{session_id}_{timestamp}_{unique_id}_{uploaded_file.name}"
+    file_path = os.path.join(uploads_dir, safe_name)
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.read())
+    return file_path, uploaded_file.name

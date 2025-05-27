@@ -5,13 +5,14 @@
 import streamlit as st
 import os
 import logging
-from utils import (
+from components.utils import (
     generate_session_id,
     initialize_chat_history,
     append_to_chat_history,
     send_query_to_middleware,
     start_middleware_if_needed,
-    prepare_chat_history_for_api
+    prepare_chat_history_for_api,
+    save_uploaded_file
 )
 import base64
 
@@ -26,14 +27,23 @@ title = ("🤖 Multi-Bot Chat Interface")
 def get_middleware_url():
     port = start_middleware_if_needed()
     return f"http://localhost:{port}"
+    
 
 # ===============================================================================
 # SECTION 3: Middleware URL and Logging Setup
 # ===============================================================================
 middleware_url = get_middleware_url()
 
-LOGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
+WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+LOGS_DIR = os.path.join(WORKING_DIR, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
+
+# Clear all log files in the logs directory
+for fname in os.listdir(LOGS_DIR):
+    if fname.endswith(".log"):
+        with open(os.path.join(LOGS_DIR, fname), "w", encoding="utf-8") as f:
+            pass  # Truncate the file
+
 LOG_FILE = os.path.join(LOGS_DIR, "streamlit_app.log")
 logging.basicConfig(
     filename=LOG_FILE,
@@ -45,41 +55,7 @@ logging.basicConfig(
 
 
 # ==============================================================================
-# SECTION 4: File Upload Section
-# ==============================================================================
-if "clicked" not in st.session_state:
-    st.session_state.clicked = False
-
-def toggle_clicked():
-    if st.session_state.clicked is True:
-        st.session_state.clicked = False
-    else:
-        st.session_state.clicked = True
-
-col1, col2 = st.columns([4,1], gap="large", vertical_alignment="bottom")
-with col1:
-    st.header(title)
-with col2:
-    if st.session_state.clicked is True:
-        st.button("Close Files", on_click=toggle_clicked)
-    else:
-        st.button("Upload Files", on_click=toggle_clicked)
-
-uploaded_document_content = ""
-uploaded_document_name = ""
-
-if st.session_state.clicked is True:
-    uploaded_files= st.file_uploader("Please Upload First Document", 
-                                     accept_multiple_files=True)
-    
-    if uploaded_files:
-        uploaded_file = uploaded_files[0]  # Only send the first file for now
-        uploaded_document_name = uploaded_file.name
-        # Read file as bytes and encode as base64 string
-        uploaded_document_content = base64.b64encode(uploaded_file.read()).decode("utf-8")
-
-# ==============================================================================
-# SECTION 5: Sidebar Form - Bot Selection & LLM Settings
+# SECTION 4: Sidebar Form - Bot Selection & LLM Settings
 # ==============================================================================
 
 # Track last selected bot to detect change
@@ -115,6 +91,44 @@ with st.sidebar.form("settings_form"):
         if selected_bot != st.session_state.last_bot_name:
             st.session_state.chat_history = initialize_chat_history()
             st.session_state.last_bot_name = selected_bot
+
+
+# ==============================================================================
+# SECTION 5: File Upload Section
+# ==============================================================================
+if "clicked" not in st.session_state:
+    st.session_state.clicked = False
+
+def toggle_clicked():
+    if st.session_state.clicked is True:
+        st.session_state.clicked = False
+    else:
+        st.session_state.clicked = True
+
+col1, col2 = st.columns([4,1], gap="large", vertical_alignment="bottom")
+with col1:
+    st.header(title)
+with col2:
+    if st.session_state.clicked is True:
+        st.button("Close Files", on_click=toggle_clicked)
+    else:
+        st.button("Upload Files", on_click=toggle_clicked)
+
+uploaded_document_path = ""
+uploaded_document_name = ""
+
+if st.session_state.clicked is True:
+    uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
+    if uploaded_files:
+        uploaded_file = uploaded_files[0]
+        # Save file and get path and name using the utility function
+        file_path, file_name = save_uploaded_file(
+            uploaded_file, 
+            st.session_state.session_id, 
+            st.session_state.get("bot_name", "ask_me_anything")
+        )
+        st.session_state.uploaded_document_path = file_path
+        st.session_state.uploaded_document_name = file_name
 
 # ==============================================================================
 # SECTION 6: Session State Initialization
@@ -169,8 +183,8 @@ if user_prompt := st.chat_input("Type your message..."):
                     top_p=st.session_state["top_p"],
                     model_name=st.session_state["model_name"],
                     content_type="",
-                    document_name=uploaded_document_name,
-                    document=uploaded_document_content,
+                    document_name=st.session_state.get("uploaded_document_name", ""),
+                    document_path=st.session_state.get("uploaded_document_path", ""),  # <-- send path
                     personalai_prompt="",
                     assistant_id="",
                     thread_id="",
