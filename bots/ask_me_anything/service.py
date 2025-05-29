@@ -12,6 +12,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.schema import Document
 
+
 # ==============================================================================
 # SECTION 2: Logging Configuration
 # This section configures logging for the Ask Me Anything bot.
@@ -19,9 +20,11 @@ from langchain.schema import Document
 
 # Vectorstore path for storing indexed documents
 VECTORSTORE_PATH = "data/vectorstores/ask_me_anything"
-
 # Set up logging directory and file
 WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+# Load credentials from YAML file
+CREDENTIALS_PATH = os.path.join(WORKING_DIR, "shared", "credentials.yml")
+# 
 LOGS_DIR = os.path.join(WORKING_DIR, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "ask_me_anything.log")
 
@@ -36,10 +39,6 @@ logging.basicConfig(
 # SECTION 3: Credentials and OpenAI Client Initialization
 # This section loads API credentials and initializes the OpenAI client.
 # ==============================================================================
-
-# Load credentials from YAML file
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-CREDENTIALS_PATH = os.path.join(PROJECT_ROOT, "shared", "credentials.yml")
 
 logging.info(f"Loading credentials from {CREDENTIALS_PATH}")
 with open(CREDENTIALS_PATH, "r") as file:
@@ -138,7 +137,7 @@ def ask_me_anything_service(
     chat_history: list = [],
     content_type: str = "",
     document_name: str = "",
-    document_path    : str = "",
+    document_path: str = "",
     top_p: float = 1.0,
     temperature: float = 0.7,
     personalai_prompt: str = "",
@@ -159,7 +158,7 @@ def ask_me_anything_service(
         chat_history (list): List of previous chat messages.
         content_type (str): MIME type of the uploaded document.
         document_name (str): Name of the uploaded document file.
-        document (str): Base64-encoded content of the uploaded document.
+        document_path (str): Path to the uploaded document file.
         top_p (float): Nucleus sampling parameter for OpenAI completion.
         temperature (float): Sampling temperature for OpenAI completion.
         personalai_prompt (str): Custom prompt for personal AI context.

@@ -206,40 +206,4 @@ def get_combined_context(query: str, vector_db_path: str, k=3) -> CombinedRetrie
     combined_retriever = CombinedRetriever(summary_retriever, chunk_retriever)
     return combined_retriever
 
-# ==============================================================================
-# SECTION 8: Query Answering
-# This section defines the function to answer user queries using the vector DB and LLM.
-# ==============================================================================
 
-def answer_query(user_prompt: str, chat_history: list, system_prompt: str, model_name: str, vector_db_path: str) -> str:
-    """
-    Answers a user query using the combined retriever and OpenAI LLM.
-    Args:
-        user_prompt (str): The user's question.
-        chat_history (list): List of previous chat messages.
-        system_prompt (str): The system prompt for the LLM.
-        model_name (str): The OpenAI model to use.
-        vector_db_path (str): Path to the FAISS vector DB.
-    Returns:
-        str: The answer from the LLM.
-    """
-    client = OpenAI(api_key=creds['openai_api_key'], model=model_name)
-
-    # Format chat history as a string for the LLM
-    def format_history(history):
-        return "\n".join([f"{m['role']}: {m['content']}" for m in history if m['role'] != "system"])
-
-    qa_chain = ConversationalRetrievalChain.from_llm(
-        llm=client,
-        retriever=get_combined_context(user_prompt, vector_db_path),
-        chain_type="stuff",
-        return_only_outputs=True,
-        verbose=True,
-        return_source_documents=False,
-        get_chat_history=lambda _: format_history(chat_history)
-    )
-    # Include system prompt in the question
-    prompt = f"{system_prompt}\n\n{user_prompt}"
-    result = qa_chain({"question": prompt,
-                       "chat_history": format(chat_history)})
-    return result["answer"]
