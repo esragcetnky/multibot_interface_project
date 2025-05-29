@@ -114,21 +114,22 @@ with col2:
     else:
         st.button("Upload Files", on_click=toggle_clicked)
 
-uploaded_document_path = ""
-uploaded_document_name = ""
+uploaded_document_path = []
+uploaded_document_name = []
 
 if st.session_state.clicked is True:
     uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
-    if uploaded_files:
-        uploaded_file = uploaded_files[0]
-        # Save file and get path and name using the utility function
+    for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
         file_path, file_name = save_uploaded_file(
             uploaded_file, 
             st.session_state.session_id, 
             st.session_state.get("bot_name", "ask_me_anything")
         )
-        st.session_state.uploaded_document_path = file_path
-        st.session_state.uploaded_document_name = file_name
+        uploaded_document_name.append(file_name)
+        uploaded_document_path.append(file_path)
+
+    st.session_state.uploaded_document_path = uploaded_document_path
+    st.session_state.uploaded_document_name = uploaded_document_name
 
 # ==============================================================================
 # SECTION 6: Session State Initialization

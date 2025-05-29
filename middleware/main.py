@@ -159,8 +159,8 @@ class QueryInput(BaseModel):
     access_key: str
     chat_history: list = []
     content_type: str = ""
-    document_name: str = ""
-    document_path: str = ""      # Path to the uploaded file (optional)
+    document_name: list = []
+    document_path: list = []      # Path to the uploaded file (optional)
     top_p: float = 1.0
     temperature: float = 0.7
     personalai_prompt: str = ""
