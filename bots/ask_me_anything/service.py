@@ -11,7 +11,10 @@ from openai import OpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.schema import Document
-
+from components.faiss_db import (
+    retrieve_relevant_context,
+    check_faiss_files_exist
+)
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
@@ -50,82 +53,7 @@ client = OpenAI(api_key=credentials["openai_api_key"])
 logging.info("OpenAI client initialized.")
 
 # ==============================================================================
-# SECTION 4: Vectorstore Management
-# This section handles loading, saving, and indexing documents in the vectorstore.
-# ==============================================================================
-
-def ensure_vectorstore_exists():
-    """
-    Ensure that the vectorstore directory exists.
-    If it does not exist, create it.
-    """
-    if not os.path.exists(VECTORSTORE_PATH):
-        os.makedirs(VECTORSTORE_PATH)
-        logging.info(f"Created vectorstore directory at {VECTORSTORE_PATH}")
-    else:
-        logging.info(f"Vectorstore directory already exists at {VECTORSTORE_PATH}")
-
-def load_vectorstore():
-    """
-    Load the FAISS vectorstore from disk if it exists.
-    Returns:
-        FAISS vectorstore object or None if not found.
-    """
-    index_file = os.path.join(VECTORSTORE_PATH, "index.faiss")
-    if os.path.exists(index_file):
-        return FAISS.load_local(VECTORSTORE_PATH, OpenAIEmbeddings())
-    return None
-
-def save_vectorstore(vectorstore):
-    """
-    Save the FAISS vectorstore to disk.
-    Args:
-        vectorstore: The FAISS vectorstore object to save.
-    """
-    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
-    vectorstore.save_local(VECTORSTORE_PATH)
-
-def index_uploaded_document(document_text: str, document_name: str) -> None:
-    """
-    Index a new document into the vectorstore.
-    Args:
-        document_text (str): The text content of the document.
-        document_name (str): The name of the document file.
-    """
-    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
-    new_doc = Document(page_content=document_text, metadata={"source": document_name})
-
-    vectorstore = load_vectorstore()
-
-    if vectorstore:
-        vectorstore.add_documents([new_doc])
-        logging.info(f"Added document to existing vectorstore: {document_name}")
-    else:
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.from_documents([new_doc], embeddings)
-        logging.info(f"Created new vectorstore with document: {document_name}")
-
-    save_vectorstore(vectorstore)
-
-def retrieve_relevant_context(query: str, k: int = 3) -> str:
-    """
-    Retrieve top-k relevant chunks from the vectorstore for the given query.
-    Args:
-        query (str): The user's query.
-        k (int): Number of relevant chunks to retrieve.
-    Returns:
-        str: Concatenated relevant context.
-    """
-    vectorstore = load_vectorstore()
-    if not vectorstore:
-        logging.info("No vectorstore found. Returning empty context.")
-        return ""
-    docs_and_scores = vectorstore.similarity_search_with_score(query, k=k)
-    context = "\n".join([doc.page_content for doc, _ in docs_and_scores])
-    return context
-
-# ==============================================================================
-# SECTION 5: Ask Me Anything Service
+# SECTION 4: Ask Me Anything Service
 # This section defines the main function for answering questions using OpenAI API.
 # ==============================================================================
 

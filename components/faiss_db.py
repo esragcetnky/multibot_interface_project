@@ -167,43 +167,6 @@ def update_or_create_vector_db(data_folder: str, vector_db_path: str) -> str:
     embed_and_save_documents(docs, vector_db_path)
     return f"Vector DB updated with {len(docs)} document chunks."
 
-# ==============================================================================
-# SECTION 7: Retrieval Utilities
-# This section provides classes and functions for retrieving relevant context.
-# ==============================================================================
 
-class CombinedRetriever:
-    """
-    Combines summary and chunk retrievers for more robust context retrieval.
-    """
-    def __init__(self, summary_retriever, chunk_retriever):
-        self.summary_retriever = summary_retriever
-        self.chunk_retriever = chunk_retriever
-
-    def get_relevant_documents(self, query: str):
-        docs = self.summary_retriever.get_relevant_documents(query)
-        docs += self.chunk_retriever.get_relevant_documents(query)
-        unique = {doc.page_content: doc for doc in docs}
-        return list(unique.values())
-
-def get_combined_context(query: str, vector_db_path: str, k=3) -> CombinedRetriever:
-    """
-    Searches the FAISS vector DB for the most similar documents to the query.
-    Returns a CombinedRetriever object for both summary and chunk indexes.
-    """
-    chunk_index = FAISS.load_local(folder_path=vector_db_path, 
-                                   embeddings=embeddings, 
-                                   allow_dangerous_deserialization=True,
-                                   index_name="chunk_index")
-    summary_index = FAISS.load_local(folder_path=vector_db_path, 
-                                     embeddings=embeddings, 
-                                     allow_dangerous_deserialization=True,
-                                     index_name="summary_index")
-    # Create retrievers for both indexes
-    summary_retriever = summary_index.as_retriever(search_kwargs={"k": 3})
-    chunk_retriever = chunk_index.as_retriever(search_kwargs={"k": 6})
-
-    combined_retriever = CombinedRetriever(summary_retriever, chunk_retriever)
-    return combined_retriever
 
 
