@@ -13,7 +13,8 @@ from langchain.vectorstores import FAISS
 from langchain.schema import Document
 from components.faiss_db import (
     retrieve_relevant_context,
-    check_faiss_files_exist
+    check_faiss_files_exist,
+    update_or_create_vector_db
 )
 
 # ==============================================================================
@@ -64,8 +65,8 @@ def ask_me_anything_service(
     access_key: str = "",
     chat_history: list = [],
     content_type: str = "",
-    document_name: str = "",
-    document_path: str = "",
+    document_name: list = [],
+    document_path: list = [],
     top_p: float = 1.0,
     temperature: float = 0.7,
     personalai_prompt: str = "",
@@ -85,8 +86,8 @@ def ask_me_anything_service(
         access_key (str): Access key for authentication or authorization.
         chat_history (list): List of previous chat messages.
         content_type (str): MIME type of the uploaded document.
-        document_name (str): Name of the uploaded document file.
-        document_path (str): Path to the uploaded document file.
+        document_name (list): Name of the uploaded document file.
+        document_path (list): Path to the uploaded document file.
         top_p (float): Nucleus sampling parameter for OpenAI completion.
         temperature (float): Sampling temperature for OpenAI completion.
         personalai_prompt (str): Custom prompt for personal AI context.
@@ -99,6 +100,14 @@ def ask_me_anything_service(
         str: The response from the OpenAI API or an error message.
     """
     logging.info(f"ask_me_anything_service called with query='{query}', model_name='{model_name}', temperature={temperature}, top_p={top_p}")
+
+    for document in document_path:
+        check_faiss_files_exist(VECTORSTORE_PATH)
+        update_or_create_vector_db(
+            vectorstore_path=VECTORSTORE_PATH,
+            data_folder=document_path,
+            document_name=document_name)
+        
 
     # 2. Retrieve relevant context from vectorstore
     context = ""

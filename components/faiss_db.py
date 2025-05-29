@@ -27,8 +27,6 @@ from langchain.chains import ConversationalRetrievalChain
 
 WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
 CREDENTIALS_PATH = WORKING_DIR + "shared\\credentials.yml"
-DATA_FOLDER = WORKING_DIR + "data\\uploads\\"
-VECTOR_DB_PATH =  WORKING_DIR + "data\\vector_db\\"
 
 def load_credentials():
     """Load API credentials from YAML file."""
@@ -156,7 +154,7 @@ def embed_and_save_documents(chunk_docs: List, vector_db_path: str) -> None:
 # This section provides a high-level function to update or create the vector DB.
 # ==============================================================================
 
-def update_or_create_vector_db(data_folder: str, vector_db_path: str) -> str:
+def update_or_create_vector_db(data_folder: str, vector_db_path: str, document_name:str) -> str:
     """
     Loads, splits, embeds all supported files in data_folder and updates/creates the FAISS vector DB.
     Returns a status message.
