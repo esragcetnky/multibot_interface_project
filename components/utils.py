@@ -3,6 +3,9 @@
 # This section imports required modules and sets up logging for the Streamlit app.
 # ==============================================================================
 # -*- coding: utf-8 -*-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import uuid
 from datetime import datetime
 import requests
@@ -232,4 +235,4 @@ def save_uploaded_file(uploaded_file, session_id, bot_name="ask_me_anything"):
     file_path = os.path.join(uploads_dir, safe_name)
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
-    return uploads_dir, uploaded_file.name
+    return uploads_dir, safe_name

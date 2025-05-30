@@ -3,6 +3,9 @@
 # This section imports required modules and sets up logging for the Grammar Helper service.
 # ==============================================================================
 # -*- coding: utf-8 -*-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import yaml
 import os
 import logging
@@ -21,8 +24,8 @@ from langchain.schema import Document
 VECTORSTORE_PATH = "data/vectorstores/grammar_helper"
 
 # Set up logging directory and file
-WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
-LOGS_DIR = os.path.join(WORKING_DIR, "logs")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "grammar_helper.log")
 
 logging.basicConfig(
