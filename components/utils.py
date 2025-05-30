@@ -236,3 +236,15 @@ def save_uploaded_file(uploaded_file, session_id, bot_name="ask_me_anything"):
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
     return uploads_dir, safe_name
+
+# ==============================================================================
+# SECTION 7: Folder Management
+# This section provides functions to check if FAISS files exist and to clear a folder.
+# ==============================================================================
+
+def clear_folder(folder_path):
+    """Delete all files in the given folder."""
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)

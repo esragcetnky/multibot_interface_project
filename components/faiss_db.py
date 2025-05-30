@@ -43,13 +43,6 @@ embeddings = OpenAIEmbeddings(api_key=creds["openai_api_key"],model="text-embedd
 # This section provides helper functions for folder and file management.
 # ==============================================================================
 
-def clear_folder(folder_path):
-    """Delete all files in the given folder."""
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-
 def check_faiss_files_exist(folder_path) -> bool:
     """
     Checks if both 'index.faiss' and 'index.pkl' exist in the given folder.
@@ -156,7 +149,7 @@ def embed_and_save_documents(chunk_docs: List, vector_db_path: str) -> None:
 # This section provides a high-level function to update or create the vector DB.
 # ==============================================================================
 
-def update_or_create_vector_db(data_folder: str, vector_db_path: str, document_name:str) -> str:
+def update_or_create_vector_db(data_folder: str, document_name:str, vector_db_path: str) -> str:
     """
     Loads, splits, embeds all supported files in data_folder and updates/creates the FAISS vector DB.
     Returns a status message.

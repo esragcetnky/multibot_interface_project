@@ -15,6 +15,7 @@ from components.utils import (
     start_middleware_if_needed,
     prepare_chat_history_for_api,
     save_uploaded_file,
+    clear_folder
 )
 import base64
 
@@ -45,6 +46,12 @@ for fname in os.listdir(LOGS_DIR):
     if fname.endswith(".log"):
         with open(os.path.join(LOGS_DIR, fname), "w", encoding="utf-8") as f:
             pass  # Truncate the file
+
+# Clear all data folder contents
+DATA_UPLOADS_DIR = os.path.join(PROJECT_ROOT, "data", "uploads")
+DATA_VECTORSTORES_DIR = os.path.join(PROJECT_ROOT, "data", "vectorstores")
+clear_folder(DATA_UPLOADS_DIR)
+clear_folder(DATA_VECTORSTORES_DIR)
 
 LOG_FILE = os.path.join(LOGS_DIR, "streamlit_app.log")
 logging.basicConfig(
