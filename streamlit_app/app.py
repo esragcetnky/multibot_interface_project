@@ -2,8 +2,10 @@
 # SECTION 1: Imports and Logging Setup
 # ==============================================================================
 # -*- coding: utf-8 -*-
-import streamlit as st
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import streamlit as st
 import logging
 from components.utils import (
     generate_session_id,
@@ -12,9 +14,10 @@ from components.utils import (
     send_query_to_middleware,
     start_middleware_if_needed,
     prepare_chat_history_for_api,
-    save_uploaded_file
+    save_uploaded_file,
 )
 import base64
+
 
 # ==============================================================================
 # SECTION 2: Page Setup
@@ -33,9 +36,8 @@ def get_middleware_url():
 # SECTION 3: Middleware URL and Logging Setup
 # ===============================================================================
 middleware_url = get_middleware_url()
-
-WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
-LOGS_DIR = os.path.join(WORKING_DIR, "logs")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Clear all log files in the logs directory
@@ -55,7 +57,27 @@ logging.basicConfig(
 
 
 # ==============================================================================
-# SECTION 4: Sidebar Form - Bot Selection & LLM Settings
+# SECTION 4: Session State Initialization
+# ==============================================================================
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = generate_session_id()
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = initialize_chat_history()
+if "user_name" not in st.session_state:
+    st.session_state.user_name = "test_user"
+
+
+# ==============================================================================
+# SECTION 5: Display Chat History
+# ==============================================================================
+
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# ==============================================================================
+# SECTION 6: Sidebar Form - Bot Selection & LLM Settings
 # ==============================================================================
 
 # Track last selected bot to detect change
@@ -64,7 +86,7 @@ if "last_bot_name" not in st.session_state:
 
 st.sidebar.title("Select Bot & Settings")
 with st.sidebar.form("settings_form"):
-
+    st.info(f"Session ID: \n{st.session_state.session_id if 'session_id' in st.session_state else 'Not set'}")
     selected_bot = st.selectbox(
         "Choose a Bot",
         ["Ask Me Anything", "Grammar Helper", "Compare Files", "Agreement Generator"],
@@ -94,7 +116,7 @@ with st.sidebar.form("settings_form"):
 
 
 # ==============================================================================
-# SECTION 5: File Upload Section
+# SECTION 7: File Upload Section
 # ==============================================================================
 if "clicked" not in st.session_state:
     st.session_state.clicked = False
@@ -131,24 +153,7 @@ if st.session_state.clicked is True:
     st.session_state.uploaded_document_path = uploaded_document_path
     st.session_state.uploaded_document_name = uploaded_document_name
 
-# ==============================================================================
-# SECTION 6: Session State Initialization
-# ==============================================================================
 
-if "session_id" not in st.session_state:
-    st.session_state.session_id = generate_session_id()
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = initialize_chat_history()
-if "user_name" not in st.session_state:
-    st.session_state.user_name = "test_user"
-
-# ==============================================================================
-# SECTION 7: Display Chat History
-# ==============================================================================
-
-for message in st.session_state.chat_history:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
 
 # ==============================================================================
 # SECTION 8: Handle New Message

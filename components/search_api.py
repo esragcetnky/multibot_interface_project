@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import requests
 import os
 import yaml
 
 
-WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
-CREDENTIALS_PATH = WORKING_DIR + "shared\\credentials.yml"
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+CREDENTIALS_PATH = os.path.join(PROJECT_ROOT,  "shared", "credentials.yml")
 
 def load_credentials():
     """Load API credentials from YAML file."""

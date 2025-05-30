@@ -3,8 +3,10 @@
 # This section imports required modules and sets up logging for the Ask Me Anything service.
 # ==============================================================================
 # -*- coding: utf-8 -*-
-import yaml
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
+import yaml
 import logging
 import base64
 from openai import OpenAI
@@ -12,7 +14,6 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.schema import Document
 from components.faiss_db import (
-    retrieve_relevant_context,
     check_faiss_files_exist,
     update_or_create_vector_db
 )
@@ -22,14 +23,13 @@ from components.faiss_db import (
 # This section configures logging for the Ask Me Anything bot.
 # ==============================================================================
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Vectorstore path for storing indexed documents
-VECTORSTORE_PATH = "data/vectorstores/ask_me_anything"
-# Set up logging directory and file
-WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
+VECTORSTORE_PATH = os.path.join(PROJECT_ROOT, "data", "vectorstores", "ask_me_anything")
 # Load credentials from YAML file
-CREDENTIALS_PATH = os.path.join(WORKING_DIR, "shared", "credentials.yml")
+CREDENTIALS_PATH = os.path.join(PROJECT_ROOT, "shared", "credentials.yml")
 # 
-LOGS_DIR = os.path.join(WORKING_DIR, "logs")
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "ask_me_anything.log")
 
 logging.basicConfig(
@@ -101,18 +101,20 @@ def ask_me_anything_service(
     """
     logging.info(f"ask_me_anything_service called with query='{query}', model_name='{model_name}', temperature={temperature}, top_p={top_p}")
 
-    for document in document_path:
-        check_faiss_files_exist(VECTORSTORE_PATH)
-        update_or_create_vector_db(
-            vectorstore_path=VECTORSTORE_PATH,
-            data_folder=document_path,
-            document_name=document_name)
+    print(f"{document_name=}, {document_path=}")
+
+    # for document in document_path:
+    #     check_faiss_files_exist(VECTORSTORE_PATH)
+    #     update_or_create_vector_db(
+    #         vectorstore_path=VECTORSTORE_PATH,
+    #         data_folder=document_path,
+    #         document_name=document_name)
         
 
     # 2. Retrieve relevant context from vectorstore
     context = ""
     try:
-        context = retrieve_relevant_context(query)
+        # context = retrieve_relevant_context(query)
         logging.info(f"Retrieved context for query: {context}")
     except Exception as e:
         logging.warning(f"Could not retrieve context: {e}")

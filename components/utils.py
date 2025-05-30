@@ -14,8 +14,8 @@ import time
 import socket
 
 # Set up logging
-WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
-LOGS_DIR = os.path.join(WORKING_DIR, "logs")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "streamlit_app.log")
 
 logging.basicConfig(
@@ -35,7 +35,7 @@ def generate_session_id() -> str:
     """
     Generate a unique session ID using current timestamp and a random UUID.
     """
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     unique_id = str(uuid.uuid4())[:8]
     session_id = f"{timestamp}_{unique_id}"
     logging.info(f"Generated session_id: {session_id}")
@@ -222,12 +222,14 @@ def save_uploaded_file(uploaded_file, session_id, bot_name="ask_me_anything"):
     """
     Save the uploaded file to the data/uploads directory and return its path and original name.
     """
+    # Data directory structure and ensure it exists
     uploads_dir = os.path.join("data", "uploads", bot_name)
     os.makedirs(uploads_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    unique_id = str(uuid.uuid4())[:8]
-    safe_name = f"{session_id}_{timestamp}_{unique_id}_{uploaded_file.name}"
+
+    # Generate a safe file name and save the file
+    safe_name = f"{session_id}_{uploaded_file.name}"
+    # Ensure the file name is unique by appending session_id and timestamp
     file_path = os.path.join(uploads_dir, safe_name)
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
-    return file_path, uploaded_file.name
+    return uploads_dir, uploaded_file.name

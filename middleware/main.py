@@ -4,7 +4,9 @@
 # ==============================================================================
 
 # -*- coding: utf-8 -*-
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import logging
 import asyncio
 import subprocess
@@ -25,8 +27,8 @@ from pydantic import BaseModel
 # This section configures logging for the middleware.
 # ==============================================================================
 
-WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
-LOGS_DIR = os.path.join(WORKING_DIR, "logs")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "middleware.log")
 
 logging.basicConfig(

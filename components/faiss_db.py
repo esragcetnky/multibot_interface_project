@@ -2,8 +2,10 @@
 # SECTION 1: Imports and Setup
 # This section imports required modules and sets up paths and credentials.
 # ==============================================================================
-
+# -*- coding: utf-8 -*-
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import shutil
 import yaml
 from typing import List
@@ -25,8 +27,8 @@ from langchain.chains import ConversationalRetrievalChain
 # This section defines working directories, data folders, and loads credentials.
 # ==============================================================================
 
-WORKING_DIR = "D:\\Calismalar\\Projeler\\GitHubRepos\\multibot_interface_project"
-CREDENTIALS_PATH = WORKING_DIR + "shared\\credentials.yml"
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+CREDENTIALS_PATH = os.path.join(PROJECT_ROOT,  "shared", "credentials.yml")
 
 def load_credentials():
     """Load API credentials from YAML file."""
