@@ -10,13 +10,7 @@ import yaml
 import logging
 import base64
 from openai import OpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.schema import Document
-from components.faiss_db import (
-    check_faiss_files_exist,
-    update_or_create_vector_db
-)
+from components.faiss_db import update_or_create_vector_db
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
@@ -26,9 +20,11 @@ from components.faiss_db import (
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Vectorstore path for storing indexed documents
 VECTORSTORE_PATH = os.path.join(PROJECT_ROOT, "data", "vectorstores", "ask_me_anything")
+# Data uploads directory for storing uploaded documents
+DATA_UPLOADS_PATH = os.path.join(PROJECT_ROOT, "data", "uploads", "ask_me_anything")
 # Load credentials from YAML file
 CREDENTIALS_PATH = os.path.join(PROJECT_ROOT, "shared", "credentials.yml")
-# 
+
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "ask_me_anything.log")
 
@@ -103,13 +99,10 @@ def ask_me_anything_service(
 
     print(f"{document_name=}, {document_path=}")
 
-    # for document in document_path:
-    #     check_faiss_files_exist(VECTORSTORE_PATH)
-    #     update_or_create_vector_db(
-    #         vectorstore_path=VECTORSTORE_PATH,
-    #         data_folder=document_path,
-    #         document_name=document_name)
-        
+    if document_name or document_path:
+        # Update or create vector database with the new document
+        update_or_create_vector_db(VECTORSTORE_PATH, document_name, document_path)
+        logging.info(f"Updating vectorstore with document: {document_name} at {document_path}")
 
     # 2. Retrieve relevant context from vectorstore
     context = ""

@@ -16,7 +16,7 @@ from langchain_community.document_loaders import (
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores  import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain_openai import OpenAI
@@ -58,16 +58,17 @@ def check_faiss_files_exist(folder_path) -> bool:
 # This section loads documents from disk and splits them into chunks.
 # ==============================================================================
 
-def load_and_split_documents(data_folder: str) -> List:
+def load_and_split_documents(document_name: str, document_path : str) -> List:
     """
     Loads all supported files from data_folder, splits them into chunks,
     and returns a list of LangChain Document objects.
     Supported formats: PDF, Word, Excel, HTML, TXT.
     """
     docs = []
-    for fname in os.listdir(data_folder):
+    for i in range(len(document_path)):
+        fname = document_name[i]
+        fpath = document_path[i]
         print(f"Loading {fname}...")
-        fpath = os.path.join(data_folder, fname)
         ext = os.path.splitext(fname)[1].lower()
         if not os.path.isfile(fpath):
             continue
@@ -92,13 +93,14 @@ def load_and_split_documents(data_folder: str) -> List:
         except Exception as e:
             print(f"Error loading {fname}: {e}")
     return docs
+        
 
 # ==============================================================================
 # SECTION 5: Embedding and Vector DB Management
 # This section handles embedding documents and saving/updating the FAISS vector DB.
 # ==============================================================================
 
-def embed_and_save_documents(chunk_docs: List, vector_db_path: str) -> None:
+def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
     """
     Embeds the given documents and saves/updates the FAISS vector DB.
     Also creates a summary index for fast retrieval.
@@ -149,15 +151,17 @@ def embed_and_save_documents(chunk_docs: List, vector_db_path: str) -> None:
 # This section provides a high-level function to update or create the vector DB.
 # ==============================================================================
 
-def update_or_create_vector_db(data_folder: str, document_name:str, vector_db_path: str) -> str:
+def update_or_create_vector_db(vectorstores_dir : str, document_name:str, document_path: str) -> str:
     """
     Loads, splits, embeds all supported files in data_folder and updates/creates the FAISS vector DB.
     Returns a status message.
     """
-    docs = load_and_split_documents(data_folder)
+    docs = load_and_split_documents(document_name=document_name, 
+                                    document_path=document_path)
     if not docs:
         return "No supported documents found."
-    embed_and_save_documents(docs, vector_db_path)
+    embed_and_save_documents(vector_db_path=vectorstores_dir, 
+                             chunk_docs=docs)
     return f"Vector DB updated with {len(docs)} document chunks."
 
 

@@ -11,9 +11,6 @@ import os
 import logging
 import base64
 from openai import OpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.schema import Document
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
@@ -52,84 +49,6 @@ logging.info("Credentials loaded successfully.")
 # Initialize OpenAI client with API key
 client = OpenAI(api_key=credentials["openai_api_key"])
 logging.info("OpenAI client initialized.")
-
-# ==============================================================================
-# SECTION 4: Vectorstore Management
-# This section handles loading, saving, and indexing documents in the vectorstore.
-# ==============================================================================
-
-def load_vectorstore():
-    """
-    Load the FAISS vectorstore from disk if it exists.
-    Returns:
-        FAISS vectorstore object or None if not found.
-    """
-    index_file = os.path.join(VECTORSTORE_PATH, "index.faiss")
-    if os.path.exists(index_file):
-        return FAISS.load_local(VECTORSTORE_PATH, OpenAIEmbeddings())
-    return None
-
-def save_vectorstore(vectorstore):
-    """
-    Save the FAISS vectorstore to disk.
-    Args:
-        vectorstore: The FAISS vectorstore object to save.
-    """
-    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
-    vectorstore.save_local(VECTORSTORE_PATH)
-
-def index_uploaded_document(document_text: str, document_name: str) -> None:
-    """
-    Index a new document into the vectorstore.
-    Args:
-        document_text (str): The text content of the document.
-        document_name (str): The name of the document file.
-    """
-    os.makedirs(VECTORSTORE_PATH, exist_ok=True)
-    new_doc = Document(page_content=document_text, metadata={"source": document_name})
-
-    vectorstore = load_vectorstore()
-
-    if vectorstore:
-        vectorstore.add_documents([new_doc])
-        logging.info(f"Added document to existing vectorstore: {document_name}")
-    else:
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.from_documents([new_doc], embeddings)
-        logging.info(f"Created new vectorstore with document: {document_name}")
-
-    save_vectorstore(vectorstore)
-
-def decode_and_index_document(document_b64: str, document_name: str):
-    """
-    Decode a base64-encoded document and index it in the vectorstore.
-    Args:
-        document_b64 (str): Base64-encoded document content.
-        document_name (str): Name of the uploaded document file.
-    """
-    try:
-        document_text = base64.b64decode(document_b64).decode("utf-8")
-        index_uploaded_document(document_text, document_name)
-        logging.info(f"Indexed uploaded document: {document_name}")
-    except Exception as e:
-        logging.error(f"Failed to decode or index uploaded document: {e}", exc_info=True)
-
-def retrieve_relevant_context(query: str, k: int = 3) -> str:
-    """
-    Retrieve top-k relevant chunks from the vectorstore for the given query.
-    Args:
-        query (str): The user's query.
-        k (int): Number of relevant chunks to retrieve.
-    Returns:
-        str: Concatenated relevant context.
-    """
-    vectorstore = load_vectorstore()
-    if not vectorstore:
-        logging.info("No vectorstore found. Returning empty context.")
-        return ""
-    docs_and_scores = vectorstore.similarity_search_with_score(query, k=k)
-    context = "\n".join([doc.page_content for doc, _ in docs_and_scores])
-    return context
 
 # ==============================================================================
 # SECTION 5: Grammar Correction Service (RAG-enabled)
@@ -179,17 +98,6 @@ def grammar_correction_service(
     """
     logging.info(f"grammar_correction_service called with query='{query}', model_name='{model_name}', temperature={temperature}, top_p={top_p}")
 
-    # 1. If a document is uploaded, decode and index it
-    if document and document_name:
-        decode_and_index_document(document, document_name)
-
-    # 2. Retrieve relevant context from vectorstore
-    context = ""
-    try:
-        context = retrieve_relevant_context(query)
-        logging.info(f"Retrieved context for query: {context}")
-    except Exception as e:
-        logging.warning(f"Could not retrieve context: {e}")
 
     # 3. Compose the system prompt with context if available
     system_prompt = (
@@ -198,8 +106,6 @@ def grammar_correction_service(
         "If the query is already grammatically correct, simply return it unchanged. "
         "Only respond with the corrected text, without any additional explanations or comments."
     )
-    if context:
-        system_prompt += f"\n\nRelevant context:\n{context}"
 
     try:
         logging.info("Sending request to OpenAI API...")

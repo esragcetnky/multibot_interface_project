@@ -241,10 +241,20 @@ def save_uploaded_file(uploaded_file, session_id, bot_name="ask_me_anything"):
 # SECTION 7: Folder Management
 # This section provides functions to check if FAISS files exist and to clear a folder.
 # ==============================================================================
-
 def clear_folder(folder_path):
-    """Delete all files in the given folder."""
+    """
+    Deletes all files and subfolders in the specified folder.
+    Args:
+        folder_path (str): Path to the folder to clear.
+    """
+    if not os.path.exists(folder_path):
+        return
     for filename in os.listdir(folder_path):
         file_path = os.path.join(folder_path, filename)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
