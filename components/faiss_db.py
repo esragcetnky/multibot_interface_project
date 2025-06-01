@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import shutil
 import yaml
 from typing import List
+import logging
 
 from langchain_community.document_loaders import (
     PyPDFLoader, UnstructuredWordDocumentLoader, UnstructuredExcelLoader,
@@ -30,9 +31,22 @@ from langchain.chains import ConversationalRetrievalChain
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CREDENTIALS_PATH = os.path.join(PROJECT_ROOT,  "shared", "credentials.yml")
 
+
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+LOG_FILE = os.path.join(LOGS_DIR, "faiss_db.log")
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,  # Set to INFO to capture info logs
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    encoding="utf-8"
+)
+
+
 def load_credentials():
     """Load API credentials from YAML file."""
     with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
+        logging.info(f"Loading credentials from {CREDENTIALS_PATH}")
         return yaml.safe_load(f)
     
 creds = load_credentials()
@@ -69,6 +83,7 @@ def load_and_split_documents(document_name: str, document_path : str) -> List:
         fname = document_name[i]
         fpath = document_path[i]
         print(f"Loading {fname}...")
+        logging.info(f"Loading {fname} from {fpath}")
         ext = os.path.splitext(fname)[1].lower()
         if not os.path.isfile(fpath):
             continue
@@ -114,7 +129,8 @@ def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
             summary_text = summary_result["output_text"] if isinstance(summary_result, dict) else str(summary_result)
             summary_docs.append(Document(page_content=summary_text, metadata=doc.metadata))
         except Exception as e:
-            print(f"Failed to summarize {doc.metadata.get('source', '')}: {e}")
+            logging.error(f"Failed to summarize {doc.metadata.get('source', '')}: {e}")
+
 
     try:
         if check_faiss_files_exist(vector_db_path):
@@ -134,6 +150,7 @@ def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
             chunk_index.save_local(vector_db_path)
             
             print(f"FAISS DB updated and saved to {vector_db_path}")
+            logging.info(f"FAISS DB updated and saved to {vector_db_path}")
         else:
             # Create new summary and chunk indexes
             summary_index = FAISS.from_documents(documents=summary_docs, embedding=embeddings)
@@ -143,8 +160,10 @@ def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
             chunk_index.save_local(folder_path=vector_db_path, index_name="chunk_index")
             
             print(f"FAISS DB created and saved to {vector_db_path}")
+            logging.info(f"FAISS DB created and saved to {vector_db_path}")
     except Exception as e:
         print(f"Error embedding documents: {e}")
+        logging.error(f"Error embedding documents: {e}", exc_info=True)
 
 # ==============================================================================
 # SECTION 6: Main Update Function
@@ -159,9 +178,12 @@ def update_or_create_vector_db(vectorstores_dir : str, document_name:str, docume
     docs = load_and_split_documents(document_name=document_name, 
                                     document_path=document_path)
     if not docs:
+        logging.warning("No supported documents found to embed.")
         return "No supported documents found."
+    
     embed_and_save_documents(vector_db_path=vectorstores_dir, 
                              chunk_docs=docs)
+    logging.info(f"Vector DB updated with {len(docs)} document chunks.")
     return f"Vector DB updated with {len(docs)} document chunks."
 
 
