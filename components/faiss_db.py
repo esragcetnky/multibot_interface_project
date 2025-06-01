@@ -79,14 +79,15 @@ def load_and_split_documents(document_name: str, document_path : str) -> List:
     Supported formats: PDF, Word, Excel, HTML, TXT.
     """
     docs = []
-    for i in range(len(document_path)):
+    for i in range(len(document_name)):
         fname = document_name[i]
-        fpath = document_path[i]
+        fpath = os.path.join(document_path[i], fname)
         print(f"Loading {fname}...")
         logging.info(f"Loading {fname} from {fpath}")
         ext = os.path.splitext(fname)[1].lower()
+        logging.info(f"File extension: {ext}")
         if not os.path.isfile(fpath):
-            continue
+            logging.warning(f"File {fpath} does not exist. Skipping.")
         try:
             if ext in [".pdf", ".PDF"]:
                 loader = PyPDFLoader(fpath)
@@ -104,9 +105,12 @@ def load_and_split_documents(document_name: str, document_path : str) -> List:
             splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000, chunk_overlap=150
             )
+            logging.info(f"Loaded {len(file_docs)} documents from {fname}")
             docs.extend(splitter.split_documents(file_docs))
         except Exception as e:
             print(f"Error loading {fname}: {e}")
+    logging.info(f"Loaded {len(docs)} documents from {document_name}")
+    logging.info(f"{docs}")
     return docs
         
 
@@ -165,8 +169,23 @@ def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
         print(f"Error embedding documents: {e}")
         logging.error(f"Error embedding documents: {e}", exc_info=True)
 
+
 # ==============================================================================
-# SECTION 6: Main Update Function
+# SECTION 6: Folder Management
+# This section provides functions to ensure folders exist and to clear a folder.
+# ==============================================================================
+
+def ensure_folder_exists(folder_path):
+    """
+    Check if a folder exists, and create it if it does not.
+    Args:
+        folder_path (str): Path to the folder.
+    """
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+# ==============================================================================
+# SECTION 7: Main Update Function
 # This section provides a high-level function to update or create the vector DB.
 # ==============================================================================
 
@@ -175,6 +194,8 @@ def update_or_create_vector_db(vectorstores_dir : str, document_name:str, docume
     Loads, splits, embeds all supported files in data_folder and updates/creates the FAISS vector DB.
     Returns a status message.
     """
+    ensure_folder_exists(vectorstores_dir)
+    ensure_folder_exists(document_path[0])
     docs = load_and_split_documents(document_name=document_name, 
                                     document_path=document_path)
     if not docs:
@@ -185,7 +206,4 @@ def update_or_create_vector_db(vectorstores_dir : str, document_name:str, docume
                              chunk_docs=docs)
     logging.info(f"Vector DB updated with {len(docs)} document chunks.")
     return f"Vector DB updated with {len(docs)} document chunks."
-
-
-
 

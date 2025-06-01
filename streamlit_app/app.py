@@ -47,12 +47,6 @@ for fname in os.listdir(LOGS_DIR):
         with open(os.path.join(LOGS_DIR, fname), "w", encoding="utf-8") as f:
             pass  # Truncate the file
 
-# Clear all data folder contents
-DATA_UPLOADS_DIR = os.path.join(PROJECT_ROOT, "data", "uploads")
-DATA_VECTORSTORES_DIR = os.path.join(PROJECT_ROOT, "data", "vectorstores")
-clear_folder(DATA_UPLOADS_DIR)
-clear_folder(DATA_VECTORSTORES_DIR)
-
 LOG_FILE = os.path.join(LOGS_DIR, "streamlit_app.log")
 logging.basicConfig(
     filename=LOG_FILE,
@@ -150,9 +144,9 @@ if st.session_state.clicked is True:
     uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
     for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
         file_path, file_name = save_uploaded_file(
-            uploaded_file, 
+            uploaded_file,
             st.session_state.session_id, 
-            st.session_state.get("bot_name", "ask_me_anything")
+            st.session_state.bot_name.lower().replace(" ", "_"),
         )
         uploaded_document_name.append(file_name)
         uploaded_document_path.append(file_path)

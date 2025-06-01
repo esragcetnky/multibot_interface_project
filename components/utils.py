@@ -231,7 +231,7 @@ def save_uploaded_file(uploaded_file, session_id, bot_name="ask_me_anything"):
     os.makedirs(uploads_dir, exist_ok=True)
 
     # Generate a safe file name and save the file
-    safe_name = f"{session_id}_{uploaded_file.name}"
+    safe_name = f"{session_id}_{uploaded_file.name}".lower().replace(" ", "_")
     # Ensure the file name is unique by appending session_id and timestamp
     file_path = os.path.join(uploads_dir, safe_name)
     with open(file_path, "wb") as f:
