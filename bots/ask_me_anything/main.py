@@ -27,7 +27,8 @@ logging.basicConfig(
     filename=LOG_FILE,
     level=logging.INFO,  # Set to INFO to capture info logs
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    encoding="utf-8"
+    encoding="utf-8",
+    force=True
 )
 
 # ==============================================================================

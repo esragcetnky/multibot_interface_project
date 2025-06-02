@@ -225,7 +225,7 @@ async def route_to_bot(request: BotRequest) -> dict:
             response = await client.post(
                 url,
                 json=request.query_input.model_dump(),
-                timeout=30,
+                timeout=180,
                 headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()

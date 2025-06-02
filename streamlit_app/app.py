@@ -58,6 +58,41 @@ logging.basicConfig(
 
 
 # ==============================================================================
+# SECTION 7: File Upload Section
+# ==============================================================================
+if "clicked" not in st.session_state:
+    st.session_state.clicked = False
+
+def toggle_clicked():
+    if st.session_state.clicked is True:
+        st.session_state.clicked = False
+    else:
+        st.session_state.clicked = True
+
+col1, col2 = st.columns([4,1], gap="large", vertical_alignment="bottom")
+with col1:
+    st.header(title)
+with col2:
+    if st.session_state.clicked is True:
+        st.button("Close Files", on_click=toggle_clicked)
+    else:
+        st.button("Upload Files", on_click=toggle_clicked)
+
+st.session_state.uploaded_document_path = []
+st.session_state.uploaded_document_name = []
+
+if st.session_state.clicked is True:
+    uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
+    for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
+        file_path, file_name = save_uploaded_file(
+            uploaded_file,
+            st.session_state.session_id, 
+            st.session_state.bot_name.lower().replace(" ", "_"),
+        )
+        st.session_state.uploaded_document_name.append(file_name)
+        st.session_state.uploaded_document_path.append(file_path)
+
+# ==============================================================================
 # SECTION 4: Session State Initialization
 # ==============================================================================
 
@@ -116,43 +151,6 @@ with st.sidebar.form("settings_form"):
             st.session_state.last_bot_name = selected_bot
 
 
-# ==============================================================================
-# SECTION 7: File Upload Section
-# ==============================================================================
-if "clicked" not in st.session_state:
-    st.session_state.clicked = False
-
-def toggle_clicked():
-    if st.session_state.clicked is True:
-        st.session_state.clicked = False
-    else:
-        st.session_state.clicked = True
-
-col1, col2 = st.columns([4,1], gap="large", vertical_alignment="bottom")
-with col1:
-    st.header(title)
-with col2:
-    if st.session_state.clicked is True:
-        st.button("Close Files", on_click=toggle_clicked)
-    else:
-        st.button("Upload Files", on_click=toggle_clicked)
-
-uploaded_document_path = []
-uploaded_document_name = []
-
-if st.session_state.clicked is True:
-    uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
-    for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
-        file_path, file_name = save_uploaded_file(
-            uploaded_file,
-            st.session_state.session_id, 
-            st.session_state.bot_name.lower().replace(" ", "_"),
-        )
-        uploaded_document_name.append(file_name)
-        uploaded_document_path.append(file_path)
-
-    st.session_state.uploaded_document_path = uploaded_document_path
-    st.session_state.uploaded_document_name = uploaded_document_name
 
 
 
@@ -190,8 +188,8 @@ if user_prompt := st.chat_input("Type your message..."):
                     top_p=st.session_state["top_p"],
                     model_name=st.session_state["model_name"],
                     content_type="",
-                    document_name=st.session_state.get("uploaded_document_name", ""),
-                    document_path=st.session_state.get("uploaded_document_path", ""),  # <-- send path
+                    document_name=st.session_state.uploaded_document_name,
+                    document_path=st.session_state.uploaded_document_path, 
                     personalai_prompt="",
                     assistant_id="",
                     thread_id="",

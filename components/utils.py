@@ -130,7 +130,7 @@ def send_query_to_middleware(
     user_name,
     session_id,
     access_key,
-    chat_history,
+    chat_history = [],
     content_type="",
     document_name = [],
     document_path = [],     
@@ -182,7 +182,7 @@ def send_query_to_middleware(
     }
     logging.info(f"Sending query to middleware: {payload}")
     try:
-        response = requests.post(url, json=payload, timeout=30, headers={"Content-Type": "application/json"})
+        response = requests.post(url, json=payload, timeout=180, headers={"Content-Type": "application/json"})
         response.raise_for_status()
         logging.info(f"Received response from middleware: {response.text}")
         return response.json()
