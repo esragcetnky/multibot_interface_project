@@ -26,6 +26,7 @@ logs/grammar_helper.log
 logs/ask_me_anything.log
 logs/compare_files.log
 logs/agreement_generator.log
+logs/faiss_db.log
 
 # Ignore Python bytecode cache folders
 middleware/__pycache__

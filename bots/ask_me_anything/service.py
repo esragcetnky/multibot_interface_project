@@ -10,7 +10,7 @@ import yaml
 import logging
 import base64
 from openai import OpenAI
-from components.faiss_db import update_or_create_vector_db
+from components.faiss_db import update_or_create_vector_db, get_combined_context
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
@@ -107,7 +107,7 @@ def ask_me_anything_service(
     # 2. Retrieve relevant context from vectorstore
     context = ""
     try:
-        # context = retrieve_relevant_context(query)
+        context = get_combined_context(query=query, vector_db_path=VECTORSTORE_PATH)
         logging.info(f"Retrieved context for query: {context}")
     except Exception as e:
         logging.warning(f"Could not retrieve context: {e}")
@@ -118,9 +118,17 @@ def ask_me_anything_service(
         "Your responses should be informative and relevant to the user's query. "
         "If you don't know the answer, it's okay to say so. "
         "You should always strive to provide the best possible answer based on the information available."
+        "Sometimes use may give you a document to read, in which case you should read it carefully and use the information to answer the question."
     )
+    
+    if document_name or document_path:
+        system_prompt += f"\n\nYou have access to the following document(s):\n {', '.join(document_name)}\n"
+
     if context:
         system_prompt += f"\n\nRelevant context:\n{context}"
+
+    logging.info(f"System prompt: {system_prompt}")
+    logging.info(f"Chat history: {chat_history}")
 
     try:
         logging.info("Sending request to OpenAI API...")

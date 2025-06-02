@@ -32,15 +32,15 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CREDENTIALS_PATH = os.path.join(PROJECT_ROOT,  "shared", "credentials.yml")
 
 
-LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
-LOG_FILE = os.path.join(LOGS_DIR, "faiss_db.log")
+# LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+# LOG_FILE = os.path.join(LOGS_DIR, "faiss_db.log")
 
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,  # Set to INFO to capture info logs
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    encoding="utf-8"
-)
+# logging.basicConfig(
+#     filename=LOG_FILE,
+#     level=logging.INFO,  # Set to INFO to capture info logs
+#     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+#     encoding="utf-8"
+# )
 
 
 def load_credentials():
@@ -109,8 +109,6 @@ def load_and_split_documents(document_name: str, document_path : str) -> List:
             docs.extend(splitter.split_documents(file_docs))
         except Exception as e:
             print(f"Error loading {fname}: {e}")
-    logging.info(f"Loaded {len(docs)} documents from {document_name}")
-    logging.info(f"{docs}")
     return docs
         
 
@@ -207,3 +205,38 @@ def update_or_create_vector_db(vectorstores_dir : str, document_name:str, docume
     logging.info(f"Vector DB updated with {len(docs)} document chunks.")
     return f"Vector DB updated with {len(docs)} document chunks."
 
+# ==============================================================================
+# SECTION 8: Get Combined Context
+# This section defines a combined retriever that uses both summary and chunk indexes.
+# ==============================================================================
+
+class CombinedRetriever:
+    def __init__(self, summary_retriever, chunk_retriever):
+        self.summary_retriever = summary_retriever
+        self.chunk_retriever = chunk_retriever
+
+    def get_relevant_documents(self, query: str):
+        docs = self.summary_retriever.get_relevant_documents(query)
+        docs += self.chunk_retriever.get_relevant_documents(query)
+        unique = {doc.page_content: doc for doc in docs}
+        return list(unique.values())
+
+def get_combined_context(query: str, vector_db_path: str, k=3) -> CombinedRetriever:
+    """
+    Searches the FAISS vector DB for the most similar documents to the query.
+    Returns a list of document page contents.
+    """
+    chunk_index = FAISS.load_local(folder_path=vector_db_path, 
+                                   embeddings=embeddings, 
+                                   allow_dangerous_deserialization=True,
+                                   index_name="chunk_index")
+    summary_index = FAISS.load_local(folder_path=vector_db_path, 
+                                     embeddings=embeddings, 
+                                     allow_dangerous_deserialization=True,
+                                     index_name="summary_index")
+    # === Step 5: RetrievalQA using both summary and chunk index ===
+    summary_retriever = summary_index.as_retriever(search_kwargs={"k": 3})
+    chunk_retriever = chunk_index.as_retriever(search_kwargs={"k": 6})
+
+    combined_retriever = CombinedRetriever(summary_retriever, chunk_retriever)
+    return combined_retriever
