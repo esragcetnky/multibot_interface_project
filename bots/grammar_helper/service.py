@@ -106,7 +106,6 @@ def grammar_correction_service(
         "Your task is to analyze the user's query and provide a corrected version if necessary. "
         "If the query is already grammatically correct, simply return it unchanged. "
         "Only respond with the corrected text, without any additional explanations or comments."
-        "If user wants something else, please clarify you are a grammar correction bot and cannot provide other services."
     )
 
     try:
