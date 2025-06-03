@@ -41,11 +41,11 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 
-# Clear all log files in the logs directory
-for fname in os.listdir(LOGS_DIR):
-    if fname.endswith(".log"):
-        with open(os.path.join(LOGS_DIR, fname), "w", encoding="utf-8") as f:
-            pass  # Truncate the file
+# # Clear all log files in the logs directory
+# for fname in os.listdir(LOGS_DIR):
+#     if fname.endswith(".log"):
+#         with open(os.path.join(LOGS_DIR, fname), "w", encoding="utf-8") as f:
+#             pass  # Truncate the file
 
 LOG_FILE = os.path.join(LOGS_DIR, "streamlit_app.log")
 logging.basicConfig(
