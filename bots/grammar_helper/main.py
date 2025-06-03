@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 import logging
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
-from .service import grammar_helper_service
+from .service import grammar_correction_service
 from typing import List, Optional
 from fastapi.responses import JSONResponse
 
@@ -154,7 +154,7 @@ async def handle_query(query_input: QueryInput):
     try:
         # Call the main service function with all relevant parameters.
         # Each parameter is passed through from the QueryInput model.
-        result = grammar_helper_service(
+        result = grammar_correction_service(
             query=query_input.query,                   # User's question or prompt
             user_name=query_input.user_name,           # User identifier
             session_id=query_input.session_id,         # Session identifier

@@ -62,6 +62,7 @@ BOTS = {
     "ask_me_anything": "uvicorn bots.ask_me_anything.main:app --host 0.0.0.0 --port {port}",
     "grammar_helper": "uvicorn bots.grammar_helper.main:app --host 0.0.0.0 --port {port}",
     "compare_files": "uvicorn bots.compare_files.main:app --host 0.0.0.0 --port {port}",
+    "agreement_generator": "uvicorn bots.agreement_generator.main:app --host 0.0.0 --port {port}",
     # Add more bots here as needed
 }
 
