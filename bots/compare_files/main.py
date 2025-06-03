@@ -1,6 +1,6 @@
 # ==============================================================================
 # SECTION 1: Imports and Logging Setup
-# This section imports required modules and sets up logging for the Ask Me Anything bot.
+# This section imports required modules and sets up logging for the Compare Files bot.
 # ==============================================================================
 # -*- coding: utf-8 -*-
 import sys
@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
-# This section configures logging for the Ask Me Anything bot.
+# This section configures logging for the Compare Files bot.
 # ==============================================================================
 
 # Set up logging directory and file
@@ -33,7 +33,7 @@ logging.basicConfig(
 
 # ==============================================================================
 # SECTION 3: FastAPI App Initialization
-# This section initializes the FastAPI app and sets up the router for the Ask Me Anything bot.
+# This section initializes the FastAPI app and sets up the router for the Compare Files bot.
 # ==============================================================================
 app = FastAPI()
 
@@ -50,7 +50,7 @@ class ChatMessage(BaseModel):
 
 class QueryInput(BaseModel):
     """
-    Model for the input to the Ask Me Anything bot.
+    Model for the input to the Compare Files bot.
     """
     query: str
     user_name: Optional[str] = ""
@@ -70,7 +70,7 @@ class QueryInput(BaseModel):
 
 # ==============================================================================
 # SECTION 5: Health Check Endpoints
-# This section defines the root and health check endpoints for the Ask Me Anything bot.
+# This section defines the root and health check endpoints for the Compare Files bot.
 # ==============================================================================
 @app.get("/")
 async def root():
@@ -79,7 +79,7 @@ async def root():
     Returns:
         dict: Welcome message.
     """
-    return {"message": "Welcome to the Ask Me Anything bot. Use /docs for API documentation."}
+    return {"message": "Welcome to the Compare Files bot. Use /docs for API documentation."}
 
 @app.get("/health")
 async def health_check():
@@ -88,7 +88,7 @@ async def health_check():
     Returns:
         dict: Status message.
     """
-    return {"status": "ok", "message": "Ask me anything is running."}
+    return {"status": "ok", "message": "Compare Files is running."}
 
 # ==============================================================================
 # SECTION 6: Middleware and Exception Handlers
@@ -122,7 +122,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.post("/api/v1")
 async def handle_query(query_input: QueryInput):
     """
-    Handle incoming Ask Me Anything requests.
+    Handle incoming Compare Files requests.
 
     Args:
         query_input (QueryInput): The input payload for the bot, containing:

@@ -1,6 +1,6 @@
 # Multi-Bot Interface Platform
 
-A modular AI platform featuring multiple bots accessed via a Streamlit frontend and FastAPI backend middleware. Users can choose different bots such as `Ask Me Anything`, `Grammar Helper`, `Compare Files`, and `Agreement Generator`, with history management and customizable parameters like temperature.
+A modular AI platform featuring multiple bots accessed via a Streamlit frontend and FastAPI backend middleware. Users can choose different bots such as `Ask Me Anything`, `Grammar Helper`, `Compare Files`, and `Agreement Generator`, with history management, document upload, retrieval-augmented generation (RAG), and customizable parameters like temperature.
 
 ---
 
@@ -36,7 +36,8 @@ multibot_interface_project/
 │
 ├── data/
 │   ├── image.png
-│   └── uploads/
+│   ├── uploads/
+│   └── vectorstores/
 │
 ├── env/
 │   ├── pyvenv.cfg
@@ -48,6 +49,8 @@ multibot_interface_project/
 │
 ├── logs/
 │   ├── ask_me_anything.log
+│   ├── compare_files.log
+│   ├── faiss_db.log
 │   ├── grammar_helper.log
 │   ├── middleware.log
 │   └── streamlit_app.log
@@ -69,14 +72,14 @@ multibot_interface_project/
 
 1. **Clone the repository**
 
-   ```bash
+   ```sh
    git clone https://your-repo-url.git
    cd multibot_interface_project
    ```
 
 2. **Create and activate Python virtual environment**
 
-   ```bash
+   ```sh
    python3 -m venv env
    # On Linux/Mac:
    source env/bin/activate
@@ -86,7 +89,7 @@ multibot_interface_project/
 
 3. **Install dependencies**
 
-   ```bash
+   ```sh
    pip install -r requirements.txt
    ```
 
@@ -98,11 +101,17 @@ multibot_interface_project/
    shared/credentials.yml
    ```
 
+   Example:
+   ```yaml
+   openai_api_key: "sk-..."
+   tavily_api_key: "tavily-..."
+   ```
+
 5. **Run FastAPI Middleware**
 
    From the project root:
 
-   ```bash
+   ```sh
    uvicorn middleware.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
@@ -110,7 +119,7 @@ multibot_interface_project/
 
    In another terminal (with the environment activated):
 
-   ```bash
+   ```sh
    streamlit run streamlit_app/app.py
    ```
 
@@ -119,16 +128,18 @@ multibot_interface_project/
 ## Features
 
 - **Multiple bots** accessible via a sidebar selector:
-  - Ask Me Anything
-  - Grammar Helper
-  - Compare Files
-  - Agreement Generator
+  - Ask Me Anything (RAG, file upload, OpenAI)
+  - Grammar Helper (RAG, file upload, OpenAI)
+  - Compare Files (file comparison)
+  - Agreement Generator (contract/summary generation)
 - **Session management** with auto-generated session IDs.
 - **Chatbot-like UI** with persistent chat history per bot.
+- **File/document upload** with support for text, PDF, DOCX, etc.
+- **Retrieval-Augmented Generation (RAG)** using FAISS vector DBs.
+- **Web search integration** via Tavily API.
 - **Temperature and other LLM parameters** adjustable in sidebar.
 - **Middleware** to route requests from frontend to appropriate bot API.
 - **Centralized logging** in the `logs/` folder for each component.
-- **Document upload and retrieval** for context-aware responses (Ask Me Anything bot).
 
 ---
 
@@ -138,20 +149,21 @@ multibot_interface_project/
 - Logs are stored in the `logs/` folder:
   - `middleware.log` for middleware events and errors
   - `streamlit_app.log` for frontend events and errors
-  - `ask_me_anything.log` for Ask Me Anything bot logs
-  - `grammar_helper.log` for Grammar Helper bot logs
+  - `ask_me_anything.log`, `grammar_helper.log`, `compare_files.log`, `faiss_db.log` for bot/component logs
 - Credentials and sensitive info must be kept private in `shared/credentials.yml`.
-- Uploaded files are stored in `data/uploads/`.
+- Uploaded files are stored in `data/uploads/` and indexed for retrieval.
+- Vector DBs are stored in `data/vectorstores/`.
 
 ---
 
 ## Future Enhancements
 
-- Implement logic for all bots in their respective `service.py` and `main.py` files.
+- Implement more advanced logic for all bots in their respective `service.py` and `main.py` files.
 - Add more bots under `bots/`
 - Improve error handling and retry mechanisms
 - Enhance UI/UX with richer chat features and file uploads
 - Containerize with Docker for easier deployment
+- Add user authentication and access control
 
 ---
 

@@ -5,22 +5,21 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import logging
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
-from .service import grammar_correction_service
-from typing import List, Optional, Dict, Any
-from fastapi.requests import Request
+from .service import grammar_helper_service
+from typing import List, Optional
 from fastapi.responses import JSONResponse
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
-# This section configures logging for the Ask Me Anything bot.
+# This section configures logging for the Grammar Helper bot.
 # ==============================================================================
 
 # Set up logging directory and file
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 LOG_FILE = os.path.join(LOGS_DIR, "grammar_helper.log")
 
@@ -29,12 +28,12 @@ logging.basicConfig(
     level=logging.INFO,  # Set to INFO to capture info logs
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     encoding="utf-8",
-    force=True  # Force the logging configuration to be applied
+    force=True
 )
 
 # ==============================================================================
 # SECTION 3: FastAPI App Initialization
-# This section initializes the FastAPI app and sets up the router for the Ask Me Anything bot.
+# This section initializes the FastAPI app and sets up the router for the Grammar Helper bot.
 # ==============================================================================
 app = FastAPI()
 
@@ -51,7 +50,7 @@ class ChatMessage(BaseModel):
 
 class QueryInput(BaseModel):
     """
-    Model for the input to the grammar helper bot.
+    Model for the input to the Ask Me Anything bot.
     """
     query: str
     user_name: Optional[str] = ""
@@ -59,8 +58,8 @@ class QueryInput(BaseModel):
     access_key: Optional[str] = ""
     chat_history: Optional[List[dict]] = []
     content_type: Optional[str] = ""
-    document_name: Optional[str] = ""
-    document: Optional[str] = ""
+    document_name: Optional[list[str]] = []
+    document_path : Optional[list[str]] = []
     top_p: Optional[float] = 1.0
     temperature: Optional[float] = 0.7
     personalai_prompt: Optional[str] = ""
@@ -71,7 +70,7 @@ class QueryInput(BaseModel):
 
 # ==============================================================================
 # SECTION 5: Health Check Endpoints
-# This section defines the root and health check endpoints for the Ask Me Anything bot.
+# This section defines the root and health check endpoints for the Grammar Helper bot.
 # ==============================================================================
 @app.get("/")
 async def root():
@@ -80,7 +79,7 @@ async def root():
     Returns:
         dict: Welcome message.
     """
-    return {"message": "Welcome to the Ask Me Anything bot. Use /docs for API documentation."}
+    return {"message": "Welcome to the Grammar Helper bot. Use /docs for API documentation."}
 
 @app.get("/health")
 async def health_check():
@@ -89,7 +88,7 @@ async def health_check():
     Returns:
         dict: Status message.
     """
-    return {"status": "ok", "message": "Ask me anything is running."}
+    return {"status": "ok", "message": "Grammar Helper is running."}
 
 # ==============================================================================
 # SECTION 6: Middleware and Exception Handlers
@@ -118,19 +117,33 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ==============================================================================
 # SECTION 7: Bot Endpoint
-# This section defines the main /api/v1 endpoint for grammar correction.
+# This section defines the main /api/v1 endpoint for the Grammar Helper bot.
 # ==============================================================================
-
 @app.post("/api/v1")
 async def handle_query(query_input: QueryInput):
     """
-    Handle incoming grammar correction requests.
+    Handle incoming Grammar Helper requests.
 
     Args:
-        query_input (QueryInput): The input payload for grammar correction.
+        query_input (QueryInput): The input payload for the bot, containing:
+            - query (str): The user's question or prompt.
+            - user_name (str, optional): The name or identifier of the user.
+            - session_id (str, optional): The session identifier for tracking conversation.
+            - access_key (str, optional): Access key for authentication or authorization.
+            - chat_history (list of dict, optional): List of previous chat messages (each with 'role' and 'content').
+            - content_type (str, optional): MIME type of the uploaded document (e.g., 'application/pdf').
+            - document_name (str, optional): List of names the uploaded document files.
+            - document_path (str, optional): List of paths to the uploaded document files.
+            - top_p (float, optional): Nucleus sampling parameter for OpenAI completion.
+            - temperature (float, optional): Sampling temperature for OpenAI completion.
+            - personalai_prompt (str, optional): Custom prompt for personal AI context.
+            - assistant_id (str, optional): Identifier for a specific assistant (if used).
+            - thread_id (str, optional): Identifier for a conversation thread (if used).
+            - message_file_id (str, optional): Identifier for a message file (if used).
+            - model_name (str, optional): The name of the OpenAI model to use (e.g., 'gpt-4o-mini').
 
     Returns:
-        dict: The response containing the corrected text or error details.
+        dict: The response containing the answer or error details.
     """
     logging.info("Bot endpoint /api/v1 HIT")
     logging.info(f"Bot received QueryInput:")
@@ -139,28 +152,29 @@ async def handle_query(query_input: QueryInput):
     logging.info(f"Model: {query_input.model_name}, Temp: {query_input.temperature}, Top_p: {query_input.top_p}")
     logging.info(f"Chat history: {query_input.chat_history}")
     try:
-        logging.info("Calling grammar_correction_service...")
-        # Call the grammar correction service with the provided parameters
-        result = grammar_correction_service(
-            query=query_input.query,
-            user_name=query_input.user_name,
-            session_id=query_input.session_id,
-            access_key=query_input.access_key,
-            chat_history=query_input.chat_history,
-            content_type=query_input.content_type,
-            document_name=query_input.document_name,
-            document=query_input.document,
-            top_p=query_input.top_p,
-            temperature=query_input.temperature,
-            personalai_prompt=query_input.personalai_prompt,
-            assistant_id=query_input.assistant_id,
-            thread_id=query_input.thread_id,
-            message_file_id=query_input.message_file_id,
-            model_name=query_input.model_name,
+        # Call the main service function with all relevant parameters.
+        # Each parameter is passed through from the QueryInput model.
+        result = grammar_helper_service(
+            query=query_input.query,                   # User's question or prompt
+            user_name=query_input.user_name,           # User identifier
+            session_id=query_input.session_id,         # Session identifier
+            access_key=query_input.access_key,         # Access/auth key
+            chat_history=query_input.chat_history,     # Previous chat messages
+            content_type=query_input.content_type,     # Uploaded document MIME type
+            document_name=query_input.document_name,   # Uploaded document file name
+            document_path =query_input.document_path,  # Path to the uploaded document file  
+            top_p=query_input.top_p,                   # Nucleus sampling parameter
+            temperature=query_input.temperature,       # Sampling temperature
+            personalai_prompt=query_input.personalai_prompt, # Custom personal AI prompt
+            assistant_id=query_input.assistant_id,     # Assistant identifier
+            thread_id=query_input.thread_id,           # Thread identifier
+            message_file_id=query_input.message_file_id, # Message file identifier
+            model_name=query_input.model_name,         # OpenAI model name
         )
-        logging.info(f"grammar_correction_service result: {result}")
+        logging.info(f"grammar_helper result: {result}")
         return {"response": result}
     except Exception as e:
         logging.error("Internal bot error: %s", str(e), exc_info=True)
         return {"error": "Internal bot error", "details": str(e)}
-    
+
+

@@ -1,6 +1,6 @@
 # ==============================================================================
 # SECTION 1: Imports and Logging Setup
-# This section imports required modules and sets up logging for the Ask Me Anything service.
+# This section imports required modules and sets up logging for the Compare Files bot.
 # ==============================================================================
 # -*- coding: utf-8 -*-
 import sys
@@ -14,7 +14,7 @@ from components.faiss_db import update_or_create_vector_db, get_combined_context
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
-# This section configures logging for the Ask Me Anything bot.
+# This section configures logging for the Compare Files bot.
 # ==============================================================================
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -51,7 +51,7 @@ client = OpenAI(api_key=credentials["openai_api_key"])
 logging.info("OpenAI client initialized.")
 
 # ==============================================================================
-# SECTION 4: Ask Me Anything Service
+# SECTION 4: Compare Files Service
 # This section defines the main function for answering questions using OpenAI API.
 # ==============================================================================
 
@@ -115,10 +115,12 @@ def compare_files_service(
 
     # 3. Compose the system prompt with context if available
     system_prompt = (
-        "You are a helpful assistant that can answer questions based on provided documents. "
+        "You are a helpful assistant that will compare files and answer questions based on their contents. "
+        "You have access to the contents of the uploaded documents and can provide insights based on them. "
         "Your task is to compare the contents of the uploaded documents and provide insights or answers based on the user's query. "
         "If you do not have enough information, you should indicate that."
         "If user does not provide any documents, you should inform them that you cannot answer without documents."
+        "If user ask something unrelated to the documents, you should inform them that you can only answer questions related to the uploaded documents."
     )
     
     if document_name or document_path:
