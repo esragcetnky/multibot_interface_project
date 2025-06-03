@@ -32,15 +32,16 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CREDENTIALS_PATH = os.path.join(PROJECT_ROOT,  "shared", "credentials.yml")
 
 
-# LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
-# LOG_FILE = os.path.join(LOGS_DIR, "faiss_db.log")
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+LOG_FILE = os.path.join(LOGS_DIR, "faiss_db.log")
 
-# logging.basicConfig(
-#     filename=LOG_FILE,
-#     level=logging.INFO,  # Set to INFO to capture info logs
-#     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-#     encoding="utf-8"
-# )
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,  # Set to INFO to capture info logs
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    encoding="utf-8",
+    force=True
+)
 
 
 def load_credentials():
@@ -239,4 +240,8 @@ def get_combined_context(query: str, vector_db_path: str, k=3) -> CombinedRetrie
     chunk_retriever = chunk_index.as_retriever(search_kwargs={"k": 6})
 
     combined_retriever = CombinedRetriever(summary_retriever, chunk_retriever)
-    return combined_retriever
+    result = combined_retriever.get_relevant_documents(query)
+    if not result:
+        logging.warning(f"No relevant documents found for query: {query}")
+        result = [Document(page_content="No relevant documents found.", metadata={})]
+    return result
