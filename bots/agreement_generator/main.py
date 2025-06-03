@@ -154,7 +154,7 @@ async def handle_query(query_input: QueryInput):
     try:
         # Call the main service function with all relevant parameters.
         # Each parameter is passed through from the QueryInput model.
-        result = ask_me_anything_service(
+        result = agreement_generator_service(
             query=query_input.query,                   # User's question or prompt
             user_name=query_input.user_name,           # User identifier
             session_id=query_input.session_id,         # Session identifier
