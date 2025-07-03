@@ -38,8 +38,14 @@ def get_middleware_url():
 # ===============================================================================
 middleware_url = get_middleware_url()
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
+
+
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
 
 # Clear all log files in the logs directory
 for fname in os.listdir(LOGS_DIR):
