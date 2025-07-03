@@ -18,7 +18,7 @@ from components.utils import (
     clear_folder
 )
 import base64
-
+import requests
 
 # ==============================================================================
 # SECTION 2: Page Setup
@@ -63,7 +63,7 @@ logging.basicConfig(
 
 
 # ==============================================================================
-# SECTION 7: File Upload Section
+# SECTION 4: File Upload Section
 # ==============================================================================
 if "clicked" not in st.session_state:
     st.session_state.clicked = False
@@ -98,7 +98,7 @@ if st.session_state.clicked is True:
         st.session_state.uploaded_document_path.append(file_path)
 
 # ==============================================================================
-# SECTION 4: Session State Initialization
+# SECTION 5: Session State Initialization
 # ==============================================================================
 
 if "session_id" not in st.session_state:
@@ -110,7 +110,7 @@ if "user_name" not in st.session_state:
 
 
 # ==============================================================================
-# SECTION 5: Display Chat History
+# SECTION 6: Display Chat History
 # ==============================================================================
 
 for message in st.session_state.chat_history:
@@ -118,36 +118,37 @@ for message in st.session_state.chat_history:
         st.markdown(message["content"])
 
 # ==============================================================================
-# SECTION 6: Sidebar Form - Bot Selection & LLM Settings
+# SECTION 7: Sidebar Form - Bot Selection & LLM Settings
 # ==============================================================================
 
 # Track last selected bot to detect change
 if "last_bot_name" not in st.session_state:
     st.session_state.last_bot_name = "Ask Me Anything"
 
-st.sidebar.title("Select Bot & Settings")
-with st.sidebar.form("settings_form"):
-    st.info(f"Session ID: \n{st.session_state.session_id if 'session_id' in st.session_state else 'Not set'}")
+st.sidebar.info(f"Session ID: \n{st.session_state.session_id if 'session_id' in st.session_state else 'Not set'}")
+
+
+with st.sidebar.expander("Model Settings", expanded=True):
     selected_bot = st.selectbox(
-        "Choose a Bot",
-        ["Ask Me Anything", "Grammar Helper", "Compare Files", "Agreement Generator"],
-        key="bot_name"
-    )
+            "Choose a Bot",
+            ["Ask Me Anything", "Grammar Helper", "Compare Files", "Agreement Generator"],
+            key="bot_name"
+        )
     temperature = st.slider("Temperature", 0.0, 1.0, 0.7, 0.05, key="temperature")
     top_p = st.slider("Top-p", 0.0, 1.0, 1.0, 0.05, key="top_p")
     model = st.selectbox(
-        "Choose OpenAI Model",
-        ["gpt-4.1","gpt-4o-mini", "gpt-4o", "text-davinci-003"],
-        index=0,
-        key="model_name"
-    )
-    # Save values in session_state (if not already)
+            "Choose OpenAI Model",
+            ["gpt-4.1","gpt-4o-mini", "gpt-4o", "text-davinci-003"],
+            index=0,
+            key="model_name"
+        )
+        # Save values in session_state (if not already)
     st.session_state.setdefault("bot_name", "Ask Me Anything")
     st.session_state.setdefault("temperature", 0.7)
     st.session_state.setdefault("top_p", 0.9)
     st.session_state.setdefault("model_name", "gpt-4o-mini")
     
-    submit_settings = st.form_submit_button("Apply Settings")
+    submit_settings = st.button("Apply Settings", use_container_width=True)
 
     # If bot has changed, reset chat history
     if submit_settings:
@@ -156,10 +157,61 @@ with st.sidebar.form("settings_form"):
             st.session_state.last_bot_name = selected_bot
         st.balloons()
 
-st.sidebar.title("Vector DB Settings")
-with st.sidebar.form("VectorDB"):
-    st.info("Vector DB Settings")
+@st.dialog("Cast your vote")
+def upload_file():
+    st.write(f"Why is your favorite?")
+    reason = st.text_input("Because...")
+    if st.button("Submit"):
+        st.session_state.vote = {"item": item, "reason": reason}
+        st.rerun()
 
+
+
+with st.sidebar.expander("Vector Database Settings", expanded=True):
+
+    vector_db_path = os.path.join(DATA_DIR, "vectorstores", f"{st.session_state.bot_name.lower().replace(' ', '_')}")
+    st.info(vector_db_path)
+
+    options = st.multiselect(    
+        "What are your favorite colors?",    
+        ["Green", "Yellow", "Red", "Blue"]
+    )   
+    if st.button("Add New Document", use_container_width=True):
+        upload_file()
+
+
+    if st.button("Delete Selected Document", use_container_width=True):
+        if st.session_state.uploaded_document_name:
+            try:
+                document_name = st.session_state.uploaded_document_name[0]
+                url = f"{middleware_url}/api/vectordb/delete-document"
+                payload = {
+                    "vector_db_path": vector_db_path,
+                    "document_name": document_name
+                }
+                response = requests.delete(url, json=payload)
+                if response.status_code == 200:
+                    st.success(f"Document '{document_name}' deleted successfully.")
+                else:
+                    st.error(f"Failed to delete document: {response.text}")
+            except Exception as e:
+                logging.exception("Error deleting document")
+                st.error(f"An error occurred while deleting the document: {e}")
+        else:
+            st.warning("No document uploaded to delete.")
+    
+    if st.button("Clear Vector DB", use_container_width=True):
+        try:
+            url = f"{middleware_url}/api/vectordb/clear"
+            payload = {"vector_db_path": vector_db_path}
+            response = requests.delete(url, json=payload)
+            if response.status_code == 200:
+                st.success("Vector DB cleared successfully.")
+            else:
+                st.error(f"Failed to clear Vector DB: {response.text}")
+        except Exception as e:
+            logging.exception("Error clearing Vector DB")
+            st.error(f"An error occurred while clearing the Vector DB: {e}") 
 
 
 
@@ -181,7 +233,7 @@ if user_prompt := st.chat_input("Type your message..."):
         chat_history_for_api = prepare_chat_history_for_api(
             st.session_state.chat_history
         )
-    
+
         # Show assistant response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
