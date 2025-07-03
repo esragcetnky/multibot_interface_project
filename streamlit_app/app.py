@@ -132,7 +132,7 @@ with st.sidebar.form("settings_form"):
     top_p = st.slider("Top-p", 0.0, 1.0, 1.0, 0.05, key="top_p")
     model = st.selectbox(
         "Choose OpenAI Model",
-        ["gpt-4o-mini", "gpt-4o", "text-davinci-003"],
+        ["gpt-4.1","gpt-4o-mini", "gpt-4o", "text-davinci-003"],
         index=0,
         key="model_name"
     )
@@ -149,7 +149,11 @@ with st.sidebar.form("settings_form"):
         if selected_bot != st.session_state.last_bot_name:
             st.session_state.chat_history = initialize_chat_history()
             st.session_state.last_bot_name = selected_bot
+        st.balloons()
 
+st.sidebar.title("Vector DB Settings")
+with st.sidebar.form("VectorDB"):
+    st.info("Vector DB Settings")
 
 
 
