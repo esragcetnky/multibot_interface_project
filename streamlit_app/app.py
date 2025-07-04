@@ -1,12 +1,14 @@
 # ==============================================================================
 # SECTION 1: Imports and Logging Setup
 # ==============================================================================
-# -*- coding: utf-8 -*-
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import streamlit as st
 import logging
+import base64
+import requests
+
 from components.utils import (
     generate_session_id,
     initialize_chat_history,
@@ -15,42 +17,43 @@ from components.utils import (
     start_middleware_if_needed,
     prepare_chat_history_for_api,
     save_uploaded_file,
-    clear_folder
+    clear_folder,
+    start_vector_db_api_if_needed
 )
-import base64
-import requests
 
 # ==============================================================================
 # SECTION 2: Page Setup
 # ==============================================================================
-
 st.set_page_config(page_title="Multi-Bot Chat", page_icon="🤖")
 title = ("🤖 Multi-Bot Chat Interface")
 
+# ==============================================================================
+# SECTION 3: Caching Middleware and Vector DB URLs
+# ==============================================================================
 @st.cache_resource
 def get_middleware_url():
     port = start_middleware_if_needed()
     return f"http://localhost:{port}"
-    
 
-# ===============================================================================
-# SECTION 3: Middleware URL and Logging Setup
-# ===============================================================================
-middleware_url = get_middleware_url()
+@st.cache_resource
+def get_vector_db_api_url():
+    port = start_vector_db_api_if_needed()
+    return f"http://localhost:{port}"
+
+middleware_api_port_num = get_middleware_url()
+vectordb_api_port_num = get_vector_db_api_url()
+
+# ==============================================================================
+# SECTION 4: Setup Paths and Logging
+# ==============================================================================
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
-os.makedirs(LOGS_DIR, exist_ok=True)
-
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-os.makedirs(DATA_DIR, exist_ok=True)
+UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
+VECTORSTORES_DIR = os.path.join(DATA_DIR, "vectorstores")
 
-
-# Clear all log files in the logs directory
-for fname in os.listdir(LOGS_DIR):
-    if fname.endswith(".log"):
-        with open(os.path.join(LOGS_DIR, fname), "w", encoding="utf-8") as f:
-            pass  # Truncate the file
+for d in [LOGS_DIR, DATA_DIR, UPLOADS_DIR, VECTORSTORES_DIR]:
+    os.makedirs(d, exist_ok=True)
 
 LOG_FILE = os.path.join(LOGS_DIR, "streamlit_app.log")
 logging.basicConfig(
@@ -61,208 +64,178 @@ logging.basicConfig(
     encoding="utf-8"
 )
 
+# ==============================================================================
+# SECTION 5: Session State Initialization
+# ==============================================================================
+def init_session():
+    defaults = {
+        "clicked": False,
+        "session_id": generate_session_id(),
+        "chat_history": initialize_chat_history(),
+        "user_name": "test_user",
+        "bot_name": "Ask Me Anything",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "model_name": "gpt-4.1",
+        "uploaded_document_path": [],
+        "uploaded_document_name": [],
+        "last_selected_bot": "Ask Me Anything"
+    }
+    for key, val in defaults.items():
+        st.session_state.setdefault(key, val)
+
+init_session()
 
 # ==============================================================================
-# SECTION 4: File Upload Section
+# SECTION 6: Upload Section
 # ==============================================================================
-if "clicked" not in st.session_state:
-    st.session_state.clicked = False
-
-def toggle_clicked():
-    if st.session_state.clicked is True:
-        st.session_state.clicked = False
-    else:
-        st.session_state.clicked = True
-
-col1, col2 = st.columns([4,1], gap="large", vertical_alignment="bottom")
+col1, col2 = st.columns([4, 1])
 with col1:
     st.header(title)
 with col2:
-    if st.session_state.clicked is True:
-        st.button("Close Files", on_click=toggle_clicked)
-    else:
-        st.button("Upload Files", on_click=toggle_clicked)
+    st.button(
+        "Close Files" if st.session_state.clicked else "Upload Files",
+        on_click=lambda: st.session_state.update({"clicked": not st.session_state.clicked})
+    )
 
-st.session_state.uploaded_document_path = []
-st.session_state.uploaded_document_name = []
-
-if st.session_state.clicked is True:
-    uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
-    for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
+if st.session_state.clicked:
+    uploaded_files = st.file_uploader("Please Upload Document(s)", accept_multiple_files=True)
+    for uploaded_file in uploaded_files:
         file_path, file_name = save_uploaded_file(
             uploaded_file,
-            st.session_state.session_id, 
+            st.session_state.session_id,
             st.session_state.bot_name.lower().replace(" ", "_"),
         )
         st.session_state.uploaded_document_name.append(file_name)
         st.session_state.uploaded_document_path.append(file_path)
 
 # ==============================================================================
-# SECTION 5: Session State Initialization
+# SECTION 7: Chat History
 # ==============================================================================
-
-if "session_id" not in st.session_state:
-    st.session_state.session_id = generate_session_id()
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = initialize_chat_history()
-if "user_name" not in st.session_state:
-    st.session_state.user_name = "test_user"
-
-
-# ==============================================================================
-# SECTION 6: Display Chat History
-# ==============================================================================
-
 for message in st.session_state.chat_history:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# ==============================================================================
-# SECTION 7: Sidebar Form - Bot Selection & LLM Settings
-# ==============================================================================
 
-# Track last selected bot to detect change
-if "last_bot_name" not in st.session_state:
-    st.session_state.last_bot_name = "Ask Me Anything"
-
-st.sidebar.info(f"Session ID: \n{st.session_state.session_id if 'session_id' in st.session_state else 'Not set'}")
-
-
-with st.sidebar.expander("Model Settings", expanded=True):
-    selected_bot = st.selectbox(
-            "Choose a Bot",
-            ["Ask Me Anything", "Grammar Helper", "Compare Files", "Agreement Generator"],
-            key="bot_name"
-        )
-    temperature = st.slider("Temperature", 0.0, 1.0, 0.7, 0.05, key="temperature")
-    top_p = st.slider("Top-p", 0.0, 1.0, 1.0, 0.05, key="top_p")
-    model = st.selectbox(
-            "Choose OpenAI Model",
-            ["gpt-4.1","gpt-4o-mini", "gpt-4o", "text-davinci-003"],
-            index=0,
-            key="model_name"
-        )
-        # Save values in session_state (if not already)
-    st.session_state.setdefault("bot_name", "Ask Me Anything")
-    st.session_state.setdefault("temperature", 0.7)
-    st.session_state.setdefault("top_p", 0.9)
-    st.session_state.setdefault("model_name", "gpt-4o-mini")
-    
-    submit_settings = st.button("Apply Settings", use_container_width=True)
-
-    # If bot has changed, reset chat history
-    if submit_settings:
-        if selected_bot != st.session_state.last_bot_name:
-            st.session_state.chat_history = initialize_chat_history()
-            st.session_state.last_bot_name = selected_bot
-        st.balloons()
-
-@st.dialog("Cast your vote")
+@st.dialog("Upload Files")
 def upload_file():
-    st.write(f"Why is your favorite?")
-    reason = st.text_input("Because...")
-    if st.button("Submit"):
-        st.session_state.vote = {"item": item, "reason": reason}
-        st.rerun()
+    """Function to handle file upload dialog."""
+    uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
+    for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
+        file_path, file_name = save_uploaded_file(
+                uploaded_file,
+                st.session_state.session_id, 
+                st.session_state.bot_name.lower().replace(" ", "_"),
+            )
+        st.session_state.uploaded_document_name.append(file_name)
+        st.session_state.uploaded_document_path.append(file_path)
 
 
 
-with st.sidebar.expander("Vector Database Settings", expanded=True):
+# ==============================================================================
+# SECTION 8: Sidebar Controls
+# ==============================================================================
+with st.sidebar:
+    st.sidebar.info(f"Session ID: \n{st.session_state.session_id}")
 
-    vector_db_path = os.path.join(DATA_DIR, "vectorstores", f"{st.session_state.bot_name.lower().replace(' ', '_')}")
+    selected_bot = st.selectbox(
+        "Choose a Bot",
+        ["Ask Me Anything", "Grammar Helper", "Compare Files", "Agreement Generator"],
+        key="bot_name"
+    )
+
+    # Clear chat if bot changes
+    if selected_bot != st.session_state.last_selected_bot:
+        st.session_state.chat_history = initialize_chat_history()
+        st.session_state.session_id = generate_session_id()
+        st.session_state.last_selected_bot = selected_bot
+
+    st.session_state.temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.temperature, 0.05)
+    st.session_state.top_p = st.slider("Top-p", 0.0, 1.0, st.session_state.top_p, 0.05)
+    st.session_state.model_name = st.selectbox(
+        "Choose OpenAI Model",
+        ["gpt-4.1", "gpt-4o-mini", "gpt-4o", "text-davinci-003"],
+        index=0
+    )
+
+    vector_db_path = os.path.join(DATA_DIR, "vectorstores", st.session_state.bot_name.lower().replace(" ", "_"))
     st.info(vector_db_path)
 
-    options = st.multiselect(    
-        "What are your favorite colors?",    
-        ["Green", "Yellow", "Red", "Blue"]
-    )   
+    try:
+        response = requests.get(
+            f"{vectordb_api_port_num}/api/vectordb/list",
+            params={"vector_db_path": vector_db_path}
+        )
+        vector_db_documents_list = response.json()
+    except Exception as e:
+        logging.exception("Error listing documents in Vector DB")
+        st.error(f"Error listing documents: {e}")
+        vector_db_documents_list = []
+
+    selected_docs = st.multiselect("Documents", vector_db_documents_list)
+
     if st.button("Add New Document", use_container_width=True):
+        st.session_state.clicked = True
         upload_file()
 
 
     if st.button("Delete Selected Document", use_container_width=True):
-        if st.session_state.uploaded_document_name:
+        if selected_docs:
             try:
-                document_name = st.session_state.uploaded_document_name[0]
-                url = f"{middleware_url}/api/vectordb/delete-document"
-                payload = {
-                    "vector_db_path": vector_db_path,
-                    "document_name": document_name
-                }
-                response = requests.delete(url, json=payload)
-                if response.status_code == 200:
-                    st.success(f"Document '{document_name}' deleted successfully.")
-                else:
-                    st.error(f"Failed to delete document: {response.text}")
+                for doc_name in selected_docs:
+                    payload = {"vector_db_path": vector_db_path, "document_name": doc_name}
+                    response = requests.delete(f"{vectordb_api_port_num}/api/vectordb/delete-document", json=payload)
+                st.success("Selected documents deleted.")
             except Exception as e:
-                logging.exception("Error deleting document")
-                st.error(f"An error occurred while deleting the document: {e}")
-        else:
-            st.warning("No document uploaded to delete.")
-    
+                logging.exception("Error deleting documents")
+                st.error(f"Delete error: {e}")
+
     if st.button("Clear Vector DB", use_container_width=True):
         try:
-            url = f"{middleware_url}/api/vectordb/clear"
-            payload = {"vector_db_path": vector_db_path}
-            response = requests.delete(url, json=payload)
+            response = requests.delete(f"{vectordb_api_port_num}/api/vectordb/delete", json={"vector_db_path": vector_db_path})
             if response.status_code == 200:
                 st.success("Vector DB cleared successfully.")
-            else:
-                st.error(f"Failed to clear Vector DB: {response.text}")
         except Exception as e:
             logging.exception("Error clearing Vector DB")
-            st.error(f"An error occurred while clearing the Vector DB: {e}") 
-
-
+            st.error(f"Error clearing DB: {e}")
 
 # ==============================================================================
-# SECTION 8: Handle New Message
+# SECTION 9: Chat Input Handling
 # ==============================================================================
-
 if user_prompt := st.chat_input("Type your message..."):
     try:
-        # Append and display user message
         st.session_state.chat_history = append_to_chat_history(
             st.session_state.chat_history, "user", user_prompt
         )
-        # Display user message in chat
         with st.chat_message("user"):
             st.markdown(user_prompt)
-        
-        # Prepare chat history for API
-        chat_history_for_api = prepare_chat_history_for_api(
-            st.session_state.chat_history
-        )
 
-        # Show assistant response
+        chat_history_for_api = prepare_chat_history_for_api(st.session_state.chat_history)
+
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 response = send_query_to_middleware(
-                    middleware_url=middleware_url,
-                    bot_name=st.session_state["bot_name"],
+                    middleware_url=middleware_api_port_num,
+                    bot_name=st.session_state.bot_name,
                     query=user_prompt,
-                    user_name=st.session_state["user_name"],
-                    session_id=st.session_state["session_id"],
+                    user_name=st.session_state.user_name,
+                    session_id=st.session_state.session_id,
                     access_key="some_access_key",
                     chat_history=chat_history_for_api,
-                    temperature=st.session_state["temperature"],
-                    top_p=st.session_state["top_p"],
-                    model_name=st.session_state["model_name"],
+                    temperature=st.session_state.temperature,
+                    top_p=st.session_state.top_p,
+                    model_name=st.session_state.model_name,
                     content_type="",
                     document_name=st.session_state.uploaded_document_name,
-                    document_path=st.session_state.uploaded_document_path, 
+                    document_path=st.session_state.uploaded_document_path,
                     personalai_prompt="",
                     assistant_id="",
                     thread_id="",
                     message_file_id=""
                 )
-                if "error" in response:
-                    assistant_reply = f"API Error: {response['error']}"
-                else:
-                    assistant_reply = response.get("response", "No response from bot.")
+                assistant_reply = response.get("response", "No response from bot.") if "error" not in response else f"API Error: {response['error']}"
                 st.markdown(assistant_reply)
 
-        # Append assistant message
         st.session_state.chat_history = append_to_chat_history(
             st.session_state.chat_history, "assistant", assistant_reply
         )
@@ -270,15 +243,3 @@ if user_prompt := st.chat_input("Type your message..."):
     except Exception as e:
         logging.exception("Streamlit app error")
         st.error(f"An unexpected error occurred: {e}")
-
-
-
-
-
-
-
-
-
-
-
-

@@ -27,6 +27,7 @@ logs/ask_me_anything.log
 logs/compare_files.log
 logs/agreement_generator.log
 logs/faiss_db.log
+logs/vectordb_api.log
 
 # Ignore Python bytecode cache folders
 middleware/__pycache__

@@ -2,11 +2,12 @@
 # SECTION 1: Imports and Setup
 # This section imports required modules and initializes the FastAPI app.
 # ==============================================================================
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 import os
+import logging
 import shutil
 from typing import List
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from components.faiss_db import (
     ensure_folder_exists,
     load_and_split_documents,
@@ -15,7 +16,25 @@ from components.faiss_db import (
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
 
-app = FastAPI()
+# ==============================================================================
+# SECTION 2: Logging Configuration
+# This section configures logging for the middleware.
+# ==============================================================================
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+LOG_FILE = os.path.join(LOGS_DIR, "vectordb_api.log")
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    force=True,
+    encoding="utf-8"
+)
+
+
+app = FastAPI(title="Vector DB API")
 
 # ==============================================================================
 # SECTION 2: Data Models
@@ -35,20 +54,38 @@ class DeleteDocumentRequest(BaseModel):
     document_name: str
 
 # ==============================================================================
-# SECTION 3: Vector DB API Endpoints
+# SECTION 3: API Root and Health Check
+# This section provides basic endpoints for the API.
+# ==============================================================================
+
+@app.get("/")
+async def root()-> dict:
+    logging.info("Root endpoint accessed.")
+    return {"message": "Welcome to the Vector DB API!"}
+
+@app.get("/health")
+async def health_check() -> dict:
+    logging.info("Health check endpoint accessed.")
+    return {"status": "ok", "message": "Vector DB API is running."}
+
+# ==============================================================================
+# SECTION 4: Vector DB API Endpoints
 # This section provides CRUD endpoints for vector DB management.
 # ==============================================================================
 
 @app.delete("/api/vectordb/delete")
-def delete_vector_db(req: VectorDBRequest):
+def delete_vector_db(req: VectorDBRequest) -> dict:
     """Delete the entire vector DB folder."""
     if not os.path.exists(req.vector_db_path):
+        logging.error(f"Vector DB path not found: {req.vector_db_path}")
         raise HTTPException(status_code=404, detail="Vector DB not found.")
+    
     shutil.rmtree(req.vector_db_path)
+    logging.info(f"Deleted vector DB at path: {req.vector_db_path}")
     return {"status": "deleted", "vector_db_path": req.vector_db_path}
 
 @app.post("/api/vectordb/add")
-def add_document_to_vector_db(req: AddDocumentRequest):
+def add_document_to_vector_db(req: AddDocumentRequest) -> dict:
     """
     Add a new document to the vector DB (incremental, does not re-embed all).
     """
@@ -74,28 +111,30 @@ def add_document_to_vector_db(req: AddDocumentRequest):
     return {"status": "added", "document_name": req.document_name}
 
 @app.get("/api/vectordb/list")
-def list_documents_in_vector_db(vector_db_path: str):
+def list_documents_in_vector_db(vector_db_path: str) -> List[str]:
     """
     List all document names in the vector DB (based on chunk_index metadata).
     """
-    chunk_index_path = os.path.join(vector_db_path, "chunk_index")
-    if not os.path.exists(os.path.join(chunk_index_path, "index.faiss")):
-        raise HTTPException(status_code=404, detail="Vector DB not found.")
-    chunk_index = FAISS.load_local(
-        folder_path=vector_db_path,
-        embeddings=embeddings,
-        allow_dangerous_deserialization=True,
-        index_name="chunk_index"
-    )
-    # Extract document names from metadata
-    doc_names = set()
-    for doc in chunk_index.docstore._dict.values():
-        if hasattr(doc, "metadata") and "source" in doc.metadata:
-            doc_names.add(doc.metadata["source"])
-    return {"documents": list(doc_names)}
+    if not os.path.exists(os.path.join(vector_db_path, "chunk_index.faiss")):
+        logging.info(HTTPException(status_code=404, detail="Vector DB not found."))
+        doc_names=[]
+    else :
+        chunk_index = FAISS.load_local(
+            folder_path=vector_db_path,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True,
+            index_name="chunk_index"
+        )
+        # Extract document names from metadata
+        doc_names = set()
+        for doc in chunk_index.docstore._dict.values():
+            if hasattr(doc, "metadata") and "source" in doc.metadata:
+                doc_names.add(doc.metadata["source"])
+            
+    return list(doc_names)
 
 @app.delete("/api/vectordb/delete-document")
-def delete_document_from_vector_db(req: DeleteDocumentRequest):
+def delete_document_from_vector_db(req: DeleteDocumentRequest)-> dict:
     """
     Delete a single document from the vector DB (by document name).
     Only removes matching documents from the index, does not rebuild the whole DB.
@@ -122,5 +161,7 @@ def delete_document_from_vector_db(req: DeleteDocumentRequest):
     return {"status": "deleted", "document_name": req.document_name}
 
 # ==============================================================================
-# SECTION 4: Additional CRUD Endpoints
-# You can add more endpoints for advanced vector DB management
+# SECTION 5: End of Vector DB API
+# This section marks the end of the vector DB API endpoints.
+# You can add more endpoints for advanced vector DB management 
+# ==============================================================================

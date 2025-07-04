@@ -118,6 +118,8 @@ def start_middleware_if_needed():
             time.sleep(0.5)
     return port
 
+
+
 # ==============================================================================
 # SECTION 4: Middleware Communication
 # This section provides the function to send a query to the middleware's /api/chat endpoint.
@@ -259,3 +261,37 @@ def clear_folder(folder_path):
                 shutil.rmtree(file_path)
         except Exception as e:
             print(f"Failed to delete {file_path}. Reason: {e}")
+
+
+# ==============================================================================
+# SECTION 8: Vector DB API Management
+# This section provides functions to manage the vector database, including adding and deleting documents.
+# ==============================================================================
+def start_vector_db_api_if_needed():
+    """
+    Find a free port and start the Vector DB API if not already running.
+    Returns:
+        int: The port number the Vector DB API is running on.
+    """ 
+    port = find_free_port()
+    if not is_port_in_use(port):
+        # Start the Vector DB API FastAPI app as a subprocess
+        cmd = [
+            sys.executable, "-m", "uvicorn",
+            "components.vector_db_api:app",
+            "--host", "127.0.0.1",
+            "--port", str(port),
+            "--log-level", "info"
+        ]
+        subprocess.Popen(cmd)
+        # Wait for the server to start
+        for _ in range(20):
+            if is_port_in_use(port):
+                break
+            time.sleep(0.5)
+    return port
+
+# ==============================================================================
+# SECTION 9: End of File
+# This section marks the end of the utility functions for the Streamlit app.
+# ==============================================================================
