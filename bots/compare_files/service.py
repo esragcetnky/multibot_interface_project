@@ -100,6 +100,7 @@ def compare_files_service(
 
     print(f"{document_name=}, {document_path=}")
 
+
     if document_name or document_path:
         # Update or create vector database with the new document
         update_or_create_vector_db(VECTORSTORE_PATH, document_name, document_path)

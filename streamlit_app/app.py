@@ -9,7 +9,7 @@ import logging
 import base64
 import requests
 
-from components.utils import (
+from components.streamlit_utils import (
     generate_session_id,
     initialize_chat_history,
     append_to_chat_history,
@@ -86,28 +86,8 @@ def init_session():
 
 init_session()
 
-# ==============================================================================
-# SECTION 6: Upload Section
-# ==============================================================================
-col1, col2 = st.columns([4, 1])
-with col1:
-    st.header(title)
-with col2:
-    st.button(
-        "Close Files" if st.session_state.clicked else "Upload Files",
-        on_click=lambda: st.session_state.update({"clicked": not st.session_state.clicked})
-    )
+st.header(title)
 
-if st.session_state.clicked:
-    uploaded_files = st.file_uploader("Please Upload Document(s)", accept_multiple_files=True)
-    for uploaded_file in uploaded_files:
-        file_path, file_name = save_uploaded_file(
-            uploaded_file,
-            st.session_state.session_id,
-            st.session_state.bot_name.lower().replace(" ", "_"),
-        )
-        st.session_state.uploaded_document_name.append(file_name)
-        st.session_state.uploaded_document_path.append(file_path)
 
 # ==============================================================================
 # SECTION 7: Chat History
@@ -119,16 +99,35 @@ for message in st.session_state.chat_history:
 
 @st.dialog("Upload Files")
 def upload_file():
-    """Function to handle file upload dialog."""
+    """Function to handle file upload dialog."""    
     uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
-    for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
-        file_path, file_name = save_uploaded_file(
-                uploaded_file,
-                st.session_state.session_id, 
-                st.session_state.bot_name.lower().replace(" ", "_"),
+    with st.spinner("Wait for it...", show_time=True):
+        for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
+            file_path, file_name = save_uploaded_file(
+                    uploaded_file,
+                    st.session_state.session_id, 
+                    st.session_state.bot_name.lower().replace(" ", "_"),
+                )
+            
+            payload = {
+                "vector_db_path": vector_db_path,
+                "document_name": file_name,
+                "document_path": file_path
+            }
+
+            response = requests.post(
+                f"{vectordb_api_port_num}/api/vectordb/add",
+                json=payload
+            )   
+
+            st.session_state.uploaded_document_name.append(file_name)
+            st.session_state.uploaded_document_path.append(file_path)
+
+            response = requests.get(
+                f"{vectordb_api_port_num}/api/vectordb/list",
+                params={"vector_db_path": vector_db_path}
             )
-        st.session_state.uploaded_document_name.append(file_name)
-        st.session_state.uploaded_document_path.append(file_path)
+            st.session_state.vector_db_documents_list = response.json()
 
 
 
@@ -166,13 +165,13 @@ with st.sidebar:
             f"{vectordb_api_port_num}/api/vectordb/list",
             params={"vector_db_path": vector_db_path}
         )
-        vector_db_documents_list = response.json()
+        st.session_state.vector_db_documents_list = response.json()
     except Exception as e:
         logging.exception("Error listing documents in Vector DB")
         st.error(f"Error listing documents: {e}")
-        vector_db_documents_list = []
+        st.session_state.vector_db_documents_list = []
 
-    selected_docs = st.multiselect("Documents", vector_db_documents_list)
+    selected_docs = st.multiselect("Documents", st.session_state.vector_db_documents_list)
 
     if st.button("Add New Document", use_container_width=True):
         st.session_state.clicked = True

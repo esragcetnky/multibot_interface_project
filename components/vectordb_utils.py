@@ -79,6 +79,12 @@ def load_and_split_documents(document_name: str, document_path : str) -> List:
     and returns a list of LangChain Document objects.
     Supported formats: PDF, Word, Excel, HTML, TXT.
     """
+
+    print("======================================================")
+    print(document_name, document_path)
+    print("======================================================")
+
+
     docs = []
     for i in range(len(document_name)):
         fname = document_name[i]
