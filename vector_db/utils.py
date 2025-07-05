@@ -10,6 +10,7 @@ import shutil
 import yaml
 from typing import List
 import logging
+from fastapi import HTTPException
 
 from langchain_community.document_loaders import (
     PyPDFLoader, UnstructuredWordDocumentLoader, UnstructuredExcelLoader,
@@ -21,7 +22,6 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain_openai import OpenAI
-from langchain.chains import ConversationalRetrievalChain
 
 # ==============================================================================
 # SECTION 2: Path and Credential Configuration
@@ -58,6 +58,10 @@ embeddings = OpenAIEmbeddings(api_key=creds["openai_api_key"],model="text-embedd
 # This section provides helper functions for folder and file management.
 # ==============================================================================
 
+# ==============================================================================
+# SECTION 4: Utility Functions (from faiss_db.py and helpers)
+# ==============================================================================
+
 def check_faiss_files_exist(folder_path) -> bool:
     """
     Checks if both 'index.faiss' and 'index.pkl' exist in the given folder.
@@ -68,23 +72,21 @@ def check_faiss_files_exist(folder_path) -> bool:
     pkl_file = os.path.join(folder_path, "index.pkl")
     return os.path.isfile(faiss_file) and os.path.isfile(pkl_file)
 
-# ==============================================================================
-# SECTION 4: Document Loading and Splitting
-# This section loads documents from disk and splits them into chunks.
-# ==============================================================================
+def ensure_folder_exists(folder_path):
+    """
+    Check if a folder exists, and create it if it does not.
+    Args:
+        folder_path (str): Path to the folder.
+    """
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
-def load_and_split_documents(document_name: str, document_path : str) -> List:
+def load_and_split_documents(document_name: List[str], document_path: List[str]) -> List[Document]:
     """
     Loads all supported files from data_folder, splits them into chunks,
     and returns a list of LangChain Document objects.
     Supported formats: PDF, Word, Excel, HTML, TXT.
     """
-
-    print("======================================================")
-    print(document_name, document_path)
-    print("======================================================")
-
-
     docs = []
     for i in range(len(document_name)):
         fname = document_name[i]
@@ -95,6 +97,7 @@ def load_and_split_documents(document_name: str, document_path : str) -> List:
         logging.info(f"File extension: {ext}")
         if not os.path.isfile(fpath):
             logging.warning(f"File {fpath} does not exist. Skipping.")
+            continue
         try:
             if ext in [".pdf", ".PDF"]:
                 loader = PyPDFLoader(fpath)
@@ -117,14 +120,8 @@ def load_and_split_documents(document_name: str, document_path : str) -> List:
         except Exception as e:
             print(f"Error loading {fname}: {e}")
     return docs
-        
 
-# ==============================================================================
-# SECTION 5: Embedding and Vector DB Management
-# This section handles embedding documents and saving/updating the FAISS vector DB.
-# ==============================================================================
-
-def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
+def embed_and_save_documents(vector_db_path: str, chunk_docs: List[Document]) -> None:
     """
     Embeds the given documents and saves/updates the FAISS vector DB.
     Also creates a summary index for fast retrieval.
@@ -139,7 +136,6 @@ def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
             summary_docs.append(Document(page_content=summary_text, metadata=doc.metadata))
         except Exception as e:
             logging.error(f"Failed to summarize {doc.metadata.get('source', '')}: {e}")
-
 
     try:
         if check_faiss_files_exist(vector_db_path):
@@ -174,80 +170,133 @@ def embed_and_save_documents(vector_db_path: str, chunk_docs: List) -> None:
         print(f"Error embedding documents: {e}")
         logging.error(f"Error embedding documents: {e}", exc_info=True)
 
-
-# ==============================================================================
-# SECTION 6: Folder Management
-# This section provides functions to ensure folders exist and to clear a folder.
-# ==============================================================================
-
-def ensure_folder_exists(folder_path):
+def get_all_document_names(vector_db_path: str) -> List[str]:
     """
-    Check if a folder exists, and create it if it does not.
+    Returns a list of all document names in the vector DB (based on chunk_index metadata).
+    """
+    doc_names = set()
+    for index_name in ["chunk_index", "summary_index"]:
+        index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+        if not os.path.exists(index_file):
+            continue
+        index = FAISS.load_local(
+            folder_path=vector_db_path,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True,
+            index_name=index_name
+        )
+        for doc in index.docstore._dict.values():
+            if hasattr(doc, "metadata") and "source" in doc.metadata:
+                doc_names.add(doc.metadata["source"])
+    return list(doc_names)
+
+def document_exists_in_vector_db(vector_db_path: str, document_name: str) -> bool:
+    """
+    Checks if a document with the given name exists in the vector DB.
     Args:
-        folder_path (str): Path to the folder.
+        vector_db_path (str): Path to the vector DB folder.
+        document_name (str): Name of the document to check. 
+    Returns:
+        bool: True if the document exists, False otherwise.
     """
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+    doc_names = get_all_document_names(vector_db_path)
+    return document_name in doc_names
 
-# ==============================================================================
-# SECTION 7: Main Update Function
-# This section provides a high-level function to update or create the vector DB.
-# ==============================================================================
-
-def update_or_create_vector_db(vectorstores_dir : str, document_name:str, document_path: str) -> str:
+def delete_documents_from_vector_db(vector_db_path: str, document_names: List[str]) -> dict:
     """
-    Loads, splits, embeds all supported files in data_folder and updates/creates the FAISS vector DB.
-    Returns a status message.
+    Deletes one or more documents from both chunk_index and summary_index by document name.
+    Args:
+        vector_db_path (str): Path to the vector DB folder.
+        document_names (List[str]): List of document names to delete.
+    Returns:
+        dict: A dictionary with two keys:
+            - "deleted": List of document names that were successfully deleted.
+            - "not_found": List of document names that were not found in the vector DB.
     """
-    ensure_folder_exists(vectorstores_dir)
-    ensure_folder_exists(document_path[0])
-    docs = load_and_split_documents(document_name=document_name, 
-                                    document_path=document_path)
-    if not docs:
-        logging.warning("No supported documents found to embed.")
-        return "No supported documents found."
-    
-    embed_and_save_documents(vector_db_path=vectorstores_dir, 
-                             chunk_docs=docs)
-    logging.info(f"Vector DB updated with {len(docs)} document chunks.")
-    return f"Vector DB updated with {len(docs)} document chunks."
+    deleted = []
+    not_found = []
+    for index_name in ["chunk_index", "summary_index"]:
+        index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+        if not os.path.exists(index_file):
+            continue
+        index = FAISS.load_local(
+            folder_path=vector_db_path,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True,
+            index_name=index_name
+        )
+        for doc_name in document_names:
+            keys_to_delete = [
+                k for k, doc in index.docstore._dict.items()
+                if hasattr(doc, "metadata") and doc.metadata.get("source") == doc_name
+            ]
+            if not keys_to_delete:
+                not_found.append(doc_name)
+                continue
+            for k in keys_to_delete:
+                del index.docstore._dict[k]
+            deleted.append(doc_name)
+        index.save_local(folder_path=vector_db_path, index_name=index_name)
+    return {"deleted": list(set(deleted)), "not_found": list(set(not_found))}
 
-# ==============================================================================
-# SECTION 8: Get Combined Context
-# This section defines a combined retriever that uses both summary and chunk indexes.
-# ==============================================================================
-
-class CombinedRetriever:
-    def __init__(self, summary_retriever, chunk_retriever):
-        self.summary_retriever = summary_retriever
-        self.chunk_retriever = chunk_retriever
-
-    def get_relevant_documents(self, query: str):
-        docs = self.summary_retriever.get_relevant_documents(query)
-        docs += self.chunk_retriever.get_relevant_documents(query)
-        unique = {doc.page_content: doc for doc in docs}
-        return list(unique.values())
-
-def get_combined_context(query: str, vector_db_path: str, k=3) -> CombinedRetriever:
+def add_documents_to_vector_db(vector_db_path: str, docs: List[Document], index_name: str) -> None:
     """
-    Searches the FAISS vector DB for the most similar documents to the query.
-    Returns a list of document page contents.
+    Adds documents to the specified FAISS index (chunk_index or summary_index).
+    If the index does not exist, it creates a new one.
+    Args:
+        vector_db_path (str): Path to the vector DB folder.
+        docs (List[Document]): List of LangChain Document objects to add.
+        index_name (str): Name of the index to add documents to ("chunk_index" or "summary_index").
     """
-    chunk_index = FAISS.load_local(folder_path=vector_db_path, 
-                                   embeddings=embeddings, 
-                                   allow_dangerous_deserialization=True,
-                                   index_name="chunk_index")
-    summary_index = FAISS.load_local(folder_path=vector_db_path, 
-                                     embeddings=embeddings, 
-                                     allow_dangerous_deserialization=True,
-                                     index_name="summary_index")
-    # === Step 5: RetrievalQA using both summary and chunk index ===
-    summary_retriever = summary_index.as_retriever(search_kwargs={"k": 3})
-    chunk_retriever = chunk_index.as_retriever(search_kwargs={"k": 6})
+    index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+    if os.path.exists(index_file):
+        index = FAISS.load_local(
+            folder_path=vector_db_path,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True,
+            index_name=index_name
+        )
+        index.add_documents(docs)
+        index.save_local(folder_path=vector_db_path, index_name=index_name)
+    else:
+        index = FAISS.from_documents(documents=docs, embedding=embeddings)
+        index.save_local(folder_path=vector_db_path, index_name=index_name)
 
-    combined_retriever = CombinedRetriever(summary_retriever, chunk_retriever)
-    result = combined_retriever.get_relevant_documents(query)
-    if not result:
-        logging.warning(f"No relevant documents found for query: {query}")
-        result = [Document(page_content="No relevant documents found.", metadata={})]
-    return result
+def clear_faiss_index(vector_db_path: str, index_name: str) -> None:
+    """
+    Clears all documents from the specified FAISS index (chunk_index or summary_index) but keeps the index file.
+    Args:
+        vector_db_path (str): Path to the vector DB folder.
+        index_name (str): Name of the index to clear ("chunk_index" or "summary_index").    
+    """
+    index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+    if not os.path.exists(index_file):
+        raise HTTPException(status_code=404, detail=f"{index_name} not found.")
+    index = FAISS.load_local(
+        folder_path=vector_db_path,
+        embeddings=embeddings,
+        allow_dangerous_deserialization=True,
+        index_name=index_name
+    )
+    # Remove all docs
+    index.docstore._dict.clear()
+    index.save_local(folder_path=vector_db_path, index_name=index_name)
+    logging.info(f"Cleared all documents from {index_name} at {vector_db_path}")
+
+def clear_vector_db(vector_db_path: str) -> dict:
+    """
+    Clears all documents from both chunk_index and summary_index in the vector DB.
+    The DB files remain, but all documents are removed.
+    Args:
+        vector_db_path (str): Path to the vector DB folder. 
+    Returns:
+        dict: A dictionary with a status message indicating the vector DB has been cleared.
+    """
+    for index_name in ["chunk_index", "summary_index"]:
+        try:
+            clear_faiss_index(vector_db_path, index_name)
+        except HTTPException as e:
+            # If index doesn't exist, skip
+            logging.warning(f"{index_name} not found at {vector_db_path}, skipping clear.")
+    logging.info(f"Cleared all documents from vector DB at path: {vector_db_path}")
+    return {"status": "cleared", "vector_db_path": vector_db_path}

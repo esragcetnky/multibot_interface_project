@@ -102,32 +102,30 @@ def upload_file():
     """Function to handle file upload dialog."""    
     uploaded_files = st.file_uploader("Please Upload First Document", accept_multiple_files=True)
     with st.spinner("Wait for it...", show_time=True):
-        for uploaded_file in uploaded_files:        # Save file and get path and name using the utility function
+        for uploaded_file in uploaded_files:
             file_path, file_name = save_uploaded_file(
-                    uploaded_file,
-                    st.session_state.session_id, 
-                    st.session_state.bot_name.lower().replace(" ", "_"),
-                )
-            
+                uploaded_file,
+                st.session_state.session_id, 
+                st.session_state.bot_name.lower().replace(" ", "_"),
+            )
+            # Prepare lists for the unified API
             payload = {
                 "vector_db_path": vector_db_path,
-                "document_name": file_name,
-                "document_path": file_path
+                "document_names": [file_name],
+                "document_paths": [file_path]
             }
-
             response = requests.post(
                 f"{vectordb_api_port_num}/api/vectordb/add",
                 json=payload
-            )   
-
+            )
             st.session_state.uploaded_document_name.append(file_name)
             st.session_state.uploaded_document_path.append(file_path)
-
+            # Refresh document list
             response = requests.get(
                 f"{vectordb_api_port_num}/api/vectordb/list",
                 params={"vector_db_path": vector_db_path}
             )
-            st.session_state.vector_db_documents_list = response.json()
+            st.session_state.vector_db_documents_list = response.json().get("documents", [])
 
 
 
@@ -165,7 +163,7 @@ with st.sidebar:
             f"{vectordb_api_port_num}/api/vectordb/list",
             params={"vector_db_path": vector_db_path}
         )
-        st.session_state.vector_db_documents_list = response.json()
+        st.session_state.vector_db_documents_list = response.json().get("documents", [])
     except Exception as e:
         logging.exception("Error listing documents in Vector DB")
         st.error(f"Error listing documents: {e}")
@@ -181,19 +179,39 @@ with st.sidebar:
     if st.button("Delete Selected Document", use_container_width=True):
         if selected_docs:
             try:
-                for doc_name in selected_docs:
-                    payload = {"vector_db_path": vector_db_path, "document_name": doc_name}
-                    response = requests.delete(f"{vectordb_api_port_num}/api/vectordb/delete-document", json=payload)
+                payload = {
+                    "vector_db_path": vector_db_path,
+                    "document_names": selected_docs  # This is already a list
+                }
+                response = requests.delete(
+                    f"{vectordb_api_port_num}/api/vectordb/delete",
+                    json=payload
+                )
                 st.success("Selected documents deleted.")
+                # Refresh document list
+                response = requests.get(
+                    f"{vectordb_api_port_num}/api/vectordb/list",
+                    params={"vector_db_path": vector_db_path}
+                )
+                st.session_state.vector_db_documents_list = response.json().get("documents", [])
             except Exception as e:
                 logging.exception("Error deleting documents")
                 st.error(f"Delete error: {e}")
 
     if st.button("Clear Vector DB", use_container_width=True):
         try:
-            response = requests.delete(f"{vectordb_api_port_num}/api/vectordb/delete", json={"vector_db_path": vector_db_path})
+            response = requests.post(
+                f"{vectordb_api_port_num}/api/vectordb/clear",
+                json={"vector_db_path": vector_db_path}
+            )
             if response.status_code == 200:
                 st.success("Vector DB cleared successfully.")
+                # Refresh document list
+                response = requests.get(
+                    f"{vectordb_api_port_num}/api/vectordb/list",
+                    params={"vector_db_path": vector_db_path}
+                )
+                st.session_state.vector_db_documents_list = response.json().get("documents", [])
         except Exception as e:
             logging.exception("Error clearing Vector DB")
             st.error(f"Error clearing DB: {e}")
