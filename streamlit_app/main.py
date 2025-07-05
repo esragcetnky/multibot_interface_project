@@ -9,7 +9,7 @@ import logging
 import base64
 import requests
 
-from components.streamlit_utils import (
+from streamlit_app.utils import (
     generate_session_id,
     initialize_chat_history,
     append_to_chat_history,

@@ -10,7 +10,7 @@ import yaml
 import logging
 import base64
 from openai import OpenAI
-from components.faiss_db import update_or_create_vector_db, get_combined_context
+from vector_db.utils import update_or_create_vector_db, get_combined_context
 
 # ==============================================================================
 # SECTION 2: Logging Configuration

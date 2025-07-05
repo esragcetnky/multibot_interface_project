@@ -29,9 +29,8 @@ multibot_interface_project/
 │       ├── main.py
 │       └── service.py
 │
-├── components/
-│   ├── faiss_db.py
-│   ├── search_api.py
+├── vector_db/
+│   ├── main.py
 │   └── utils.py
 │
 ├── data/
@@ -62,8 +61,8 @@ multibot_interface_project/
 │   └── credentials.yml
 │
 └── streamlit_app/
-    ├── app.py
-    └── __pycache__/
+    ├── main.py
+    └── utils.py
 ```
 
 ---
@@ -115,12 +114,20 @@ multibot_interface_project/
    uvicorn middleware.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-6. **Run Streamlit Interface**
+6. **Run Vector DB API**
 
    In another terminal (with the environment activated):
 
    ```sh
-   streamlit run streamlit_app/app.py
+   uvicorn vector_db.main:app --reload --host 0.0.0.0 --port 5000
+   ```
+
+7. **Run Streamlit Interface**
+
+   In another terminal (with the environment activated):
+
+   ```sh
+   streamlit run streamlit_app/main.py
    ```
 
 ---
@@ -140,6 +147,7 @@ multibot_interface_project/
 - **Temperature and other LLM parameters** adjustable in sidebar.
 - **Middleware** to route requests from frontend to appropriate bot API.
 - **Centralized logging** in the `logs/` folder for each component.
+- **Vector DB microservice** for CRUD operations on document vector stores.
 
 ---
 
@@ -153,6 +161,7 @@ multibot_interface_project/
 - Credentials and sensitive info must be kept private in `shared/credentials.yml`.
 - Uploaded files are stored in `data/uploads/` and indexed for retrieval.
 - Vector DBs are stored in `data/vectorstores/`.
+- Vector DB API code is in `vector_db/` and provides endpoints for document management.
 
 ---
 

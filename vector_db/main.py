@@ -11,7 +11,7 @@ import yaml
 from typing import List
 import logging
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from langchain_community.document_loaders import (
@@ -24,7 +24,6 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain_openai import OpenAI
-from langchain.chains import ConversationalRetrievalChain
 
 # ==============================================================================
 # SECTION 2: Path and Credential Configuration
@@ -198,21 +197,20 @@ def get_all_document_names(vector_db_path: str) -> List[str]:
     """
     Returns a list of all document names in the vector DB (based on chunk_index metadata).
     """
-    chunk_index_path = os.path.join(vector_db_path, "chunk_index")
-    faiss_file = os.path.join(vector_db_path, "chunk_index.faiss")
-    if not os.path.exists(faiss_file):
-        logging.info(f"Vector DB not found at {faiss_file}")
-        return []
-    chunk_index = FAISS.load_local(
-        folder_path=vector_db_path,
-        embeddings=embeddings,
-        allow_dangerous_deserialization=True,
-        index_name="chunk_index"
-    )
     doc_names = set()
-    for doc in chunk_index.docstore._dict.values():
-        if hasattr(doc, "metadata") and "source" in doc.metadata:
-            doc_names.add(doc.metadata["source"])
+    for index_name in ["chunk_index", "summary_index"]:
+        index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+        if not os.path.exists(index_file):
+            continue
+        index = FAISS.load_local(
+            folder_path=vector_db_path,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True,
+            index_name=index_name
+        )
+        for doc in index.docstore._dict.values():
+            if hasattr(doc, "metadata") and "source" in doc.metadata:
+                doc_names.add(doc.metadata["source"])
     return list(doc_names)
 
 def document_exists_in_vector_db(vector_db_path: str, document_name: str) -> bool:
@@ -224,42 +222,83 @@ def document_exists_in_vector_db(vector_db_path: str, document_name: str) -> boo
 
 def delete_documents_from_vector_db(vector_db_path: str, document_names: List[str]) -> dict:
     """
-    Deletes one or more documents from the vector DB by document name.
+    Deletes one or more documents from both chunk_index and summary_index by document name.
     """
-    faiss_file = os.path.join(vector_db_path, "chunk_index.faiss")
-    if not os.path.exists(faiss_file):
-        raise HTTPException(status_code=404, detail="Vector DB not found.")
-    chunk_index = FAISS.load_local(
+    deleted = []
+    not_found = []
+    for index_name in ["chunk_index", "summary_index"]:
+        index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+        if not os.path.exists(index_file):
+            continue
+        index = FAISS.load_local(
+            folder_path=vector_db_path,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True,
+            index_name=index_name
+        )
+        for doc_name in document_names:
+            keys_to_delete = [
+                k for k, doc in index.docstore._dict.items()
+                if hasattr(doc, "metadata") and doc.metadata.get("source") == doc_name
+            ]
+            if not keys_to_delete:
+                not_found.append(doc_name)
+                continue
+            for k in keys_to_delete:
+                del index.docstore._dict[k]
+            deleted.append(doc_name)
+        index.save_local(folder_path=vector_db_path, index_name=index_name)
+    return {"deleted": list(set(deleted)), "not_found": list(set(not_found))}
+
+def add_documents_to_vector_db(vector_db_path: str, docs: List[Document], index_name: str) -> None:
+    """
+    Adds documents to the specified FAISS index (chunk_index or summary_index).
+    """
+    index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+    if os.path.exists(index_file):
+        index = FAISS.load_local(
+            folder_path=vector_db_path,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True,
+            index_name=index_name
+        )
+        index.add_documents(docs)
+        index.save_local(folder_path=vector_db_path, index_name=index_name)
+    else:
+        index = FAISS.from_documents(documents=docs, embedding=embeddings)
+        index.save_local(folder_path=vector_db_path, index_name=index_name)
+
+def clear_faiss_index(vector_db_path: str, index_name: str) -> None:
+    """
+    Clears all documents from the specified FAISS index (chunk_index or summary_index) but keeps the index file.
+    """
+    index_file = os.path.join(vector_db_path, f"{index_name}.faiss")
+    if not os.path.exists(index_file):
+        raise HTTPException(status_code=404, detail=f"{index_name} not found.")
+    index = FAISS.load_local(
         folder_path=vector_db_path,
         embeddings=embeddings,
         allow_dangerous_deserialization=True,
-        index_name="chunk_index"
+        index_name=index_name
     )
-    deleted = []
-    not_found = []
-    for doc_name in document_names:
-        keys_to_delete = [
-            k for k, doc in chunk_index.docstore._dict.items()
-            if hasattr(doc, "metadata") and doc.metadata.get("source") == doc_name
-        ]
-        if not keys_to_delete:
-            not_found.append(doc_name)
-            continue
-        for k in keys_to_delete:
-            del chunk_index.docstore._dict[k]
-        deleted.append(doc_name)
-    chunk_index.save_local(folder_path=vector_db_path, index_name="chunk_index")
-    return {"deleted": deleted, "not_found": not_found}
+    # Remove all docs
+    index.docstore._dict.clear()
+    index.save_local(folder_path=vector_db_path, index_name=index_name)
+    logging.info(f"Cleared all documents from {index_name} at {vector_db_path}")
 
 def clear_vector_db(vector_db_path: str) -> dict:
     """
-    Deletes the entire vector DB folder.
+    Clears all documents from both chunk_index and summary_index in the vector DB.
+    The DB files remain, but all documents are removed.
     """
-    if not os.path.exists(vector_db_path):
-        raise HTTPException(status_code=404, detail="Vector DB not found.")
-    shutil.rmtree(vector_db_path)
-    logging.info(f"Deleted vector DB at path: {vector_db_path}")
-    return {"status": "deleted", "vector_db_path": vector_db_path}
+    for index_name in ["chunk_index", "summary_index"]:
+        try:
+            clear_faiss_index(vector_db_path, index_name)
+        except HTTPException as e:
+            # If index doesn't exist, skip
+            logging.warning(f"{index_name} not found at {vector_db_path}, skipping clear.")
+    logging.info(f"Cleared all documents from vector DB at path: {vector_db_path}")
+    return {"status": "cleared", "vector_db_path": vector_db_path}
 
 # ==============================================================================
 # SECTION 5: API Endpoints
@@ -267,11 +306,21 @@ def clear_vector_db(vector_db_path: str) -> dict:
 
 @app.get("/")
 async def root() -> dict:
+    """
+    Root endpoint to verify if the Vector DB API is running.
+    Returns:
+        dict: Welcome message.
+    """
     logging.info("Root endpoint accessed.")
     return {"message": "Welcome to the Vector DB API!"}
 
 @app.get("/health")
 async def health_check() -> dict:
+    """
+    Health check endpoint to verify if the Vector DB API is running.
+    Returns:
+        dict: Status message indicating the API is running.
+    """
     logging.info("Health check endpoint accessed.")
     return {"status": "ok", "message": "Vector DB API is running."}
 
@@ -279,6 +328,12 @@ async def health_check() -> dict:
 def create_or_update_vector_db(vector_db_path: str, data_upload_folder: str) -> dict:
     """
     Loads, splits, embeds all supported files in data_upload_folder and updates/creates the FAISS vector DB.
+    If the vector DB already exists, it will update the existing index with new documents.
+    Args:
+        vector_db_path (str): Path to the vector DB folder.
+        data_upload_folder (str): Path to the folder containing documents to be added.
+    Returns:
+        dict: Status message indicating whether the vector DB was created or updated, and number of chunks added.
     """
     ensure_folder_exists(vector_db_path)
     # List all files in the data_upload_folder
@@ -302,40 +357,52 @@ def add_document_to_vector_db(req: AddDocumentRequest) -> dict:
     """
     Add a new document to the vector DB (incremental, does not re-embed all).
     Checks if a document with the same name exists before adding.
+    Adds to both chunk_index and summary_index.
+    Args:
+        req (AddDocumentRequest): Request containing vector DB path, document name, and path.
+    Returns:
+        dict: Status message indicating whether the document was added or already exists.
     """
     ensure_folder_exists(req.vector_db_path)
-    # Check if document already exists
     if document_exists_in_vector_db(req.vector_db_path, req.document_name):
         return {"status": "already_exists", "document_name": req.document_name}
     docs = load_and_split_documents([req.document_name], [req.document_path])
     if not docs:
         raise HTTPException(status_code=400, detail="No supported documents found.")
-    faiss_file = os.path.join(req.vector_db_path, "chunk_index.faiss")
-    if os.path.exists(faiss_file):
-        chunk_index = FAISS.load_local(
-            folder_path=req.vector_db_path,
-            embeddings=embeddings,
-            allow_dangerous_deserialization=True,
-            index_name="chunk_index"
-        )
-        chunk_index.add_documents(docs)
-        chunk_index.save_local(folder_path=req.vector_db_path, index_name="chunk_index")
-    else:
-        chunk_index = FAISS.from_documents(documents=docs, embedding=embeddings)
-        chunk_index.save_local(folder_path=req.vector_db_path, index_name="chunk_index")
+    # Add to chunk_index
+    add_documents_to_vector_db(req.vector_db_path, docs, "chunk_index")
+    # Summarize and add to summary_index
+    client = OpenAI(api_key=creds['openai_api_key'])
+    summarizer = load_summarize_chain(client, chain_type="map_reduce")
+    summary_docs = []
+    for doc in docs:
+        try:
+            summary_result = summarizer.invoke([doc])
+            summary_text = summary_result["output_text"] if isinstance(summary_result, dict) else str(summary_result)
+            summary_docs.append(Document(page_content=summary_text, metadata=doc.metadata))
+        except Exception as e:
+            logging.error(f"Failed to summarize {doc.metadata.get('source', '')}: {e}")
+    add_documents_to_vector_db(req.vector_db_path, summary_docs, "summary_index")
     return {"status": "added", "document_name": req.document_name}
 
 @app.post("/api/vectordb/add-multiple")
 def add_multiple_documents_to_vector_db(req: AddMultipleDocumentsRequest) -> dict:
     """
     Add multiple documents to the vector DB (incremental, does not re-embed all).
-    Skips documents that already exist.
+    Skips documents that already exist. Adds to both chunk_index and summary_index.
+    Args:
+        req (AddMultipleDocumentsRequest): Request containing vector DB path, document names, and paths.
+    Returns:
+        dict: Status message indicating which documents were added or skipped.
     """
     ensure_folder_exists(req.vector_db_path)
     existing_docs = get_all_document_names(req.vector_db_path)
     docs_to_add = []
+    summary_docs_to_add = []
     added = []
     skipped = []
+    client = OpenAI(api_key=creds['openai_api_key'])
+    summarizer = load_summarize_chain(client, chain_type="map_reduce")
     for doc_name, doc_path in zip(req.document_names, req.document_paths):
         if doc_name in existing_docs:
             skipped.append(doc_name)
@@ -343,28 +410,27 @@ def add_multiple_documents_to_vector_db(req: AddMultipleDocumentsRequest) -> dic
         docs = load_and_split_documents([doc_name], [doc_path])
         docs_to_add.extend(docs)
         added.append(doc_name)
-    if not docs_to_add:
-        return {"status": "no_new_documents_added", "skipped": skipped}
-    faiss_file = os.path.join(req.vector_db_path, "chunk_index.faiss")
-    if os.path.exists(faiss_file):
-        chunk_index = FAISS.load_local(
-            folder_path=req.vector_db_path,
-            embeddings=embeddings,
-            allow_dangerous_deserialization=True,
-            index_name="chunk_index"
-        )
-        chunk_index.add_documents(docs_to_add)
-        chunk_index.save_local(folder_path=req.vector_db_path, index_name="chunk_index")
-    else:
-        chunk_index = FAISS.from_documents(documents=docs_to_add, embedding=embeddings)
-        chunk_index.save_local(folder_path=req.vector_db_path, index_name="chunk_index")
+        for doc in docs:
+            try:
+                summary_result = summarizer.invoke([doc])
+                summary_text = summary_result["output_text"] if isinstance(summary_result, dict) else str(summary_result)
+                summary_docs_to_add.append(Document(page_content=summary_text, metadata=doc.metadata))
+            except Exception as e:
+                logging.error(f"Failed to summarize {doc.metadata.get('source', '')}: {e}")
+    if docs_to_add:
+        add_documents_to_vector_db(req.vector_db_path, docs_to_add, "chunk_index")
+    if summary_docs_to_add:
+        add_documents_to_vector_db(req.vector_db_path, summary_docs_to_add, "summary_index")
     return {"status": "added", "added": added, "skipped": skipped}
 
 @app.delete("/api/vectordb/delete-document")
 def delete_document_from_vector_db(req: DeleteDocumentRequest) -> dict:
     """
-    Delete a single document from the vector DB (by document name).
-    Only removes matching documents from the index, does not rebuild the whole DB.
+    Delete a single document from the vector DB (by document name) in both chunk_index and summary_index.
+    Args:
+        req (DeleteDocumentRequest): Request containing vector DB path and document name.
+    Returns:
+        dict: Status message indicating the document was deleted or not found.
     """
     if not document_exists_in_vector_db(req.vector_db_path, req.document_name):
         raise HTTPException(status_code=404, detail="Document not found in vector DB.")
@@ -374,29 +440,24 @@ def delete_document_from_vector_db(req: DeleteDocumentRequest) -> dict:
 @app.delete("/api/vectordb/delete-multiple")
 def delete_multiple_documents_from_vector_db(req: DeleteMultipleDocumentsRequest) -> dict:
     """
-    Delete multiple documents from the vector DB (by document names).
+    Delete multiple documents from the vector DB (by document names) in both chunk_index and summary_index.
+    Args:
+        req (DeleteMultipleDocumentsRequest): Request containing vector DB path and document names.
+    Returns:
+        dict: Status message indicating which documents were deleted or not found.
     """
     result = delete_documents_from_vector_db(req.vector_db_path, req.document_names)
     return result
 
-@app.delete("/api/vectordb/delete")
-def delete_vector_db(req: VectorDBRequest) -> dict:
-    """
-    Delete the entire vector DB folder.
-    """
-    return clear_vector_db(req.vector_db_path)
-
-@app.get("/api/vectordb/list")
-def list_documents_in_vector_db(vector_db_path: str) -> List[str]:
-    """
-    List all document names in the vector DB (based on chunk_index metadata).
-    """
-    return get_all_document_names(vector_db_path)
-
 @app.post("/api/vectordb/clear")
 def clear_vector_db_api(req: VectorDBRequest) -> dict:
     """
-    Clear the entire vector DB folder (alias for delete).
+    Clear all documents from both chunk_index and summary_index in the vector DB.
+    The DB files remain, but all documents are removed.
+    Args:
+        req (VectorDBRequest): Request containing the vector DB path.
+    Returns:
+        dict: Status message indicating the vector DB has been cleared.
     """
     return clear_vector_db(req.vector_db_path)
 
