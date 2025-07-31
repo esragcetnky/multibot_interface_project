@@ -10,7 +10,7 @@ import yaml
 import logging
 import base64
 from openai import OpenAI
-from vector_db.utils import update_or_create_vector_db, get_combined_context
+from vector_db.utils import get_combined_context
 
 # ==============================================================================
 # SECTION 2: Logging Configuration
@@ -62,8 +62,6 @@ def agreement_generator_service(
     access_key: str = "",
     chat_history: list = [],
     content_type: str = "",
-    document_name: list = [],
-    document_path: list = [],
     top_p: float = 1.0,
     temperature: float = 0.7,
     personalai_prompt: str = "",
@@ -83,8 +81,6 @@ def agreement_generator_service(
         access_key (str): Access key for authentication or authorization.
         chat_history (list): List of previous chat messages.
         content_type (str): MIME type of the uploaded document.
-        document_name (list): Name(s) of the uploaded document file(s).
-        document_path (list): Path(s) to the uploaded document file(s).
         top_p (float): Nucleus sampling parameter for OpenAI completion.
         temperature (float): Sampling temperature for OpenAI completion.
         personalai_prompt (str): Custom prompt for personal AI context.
@@ -97,13 +93,6 @@ def agreement_generator_service(
         str: The generated agreement or an error message.
     """
     logging.info(f"agreement_generator_service called with query='{query}', model_name='{model_name}', temperature={temperature}, top_p={top_p}")
-
-    print(f"{document_name=}, {document_path=}")
-
-    if document_name or document_path:
-        # Update or create vector database with the new document
-        update_or_create_vector_db(VECTORSTORE_PATH, document_name, document_path)
-        logging.info(f"Updating vectorstore with document: {document_name} at {document_path}")
 
     # 2. Retrieve relevant context from vectorstore
     context = ""
@@ -125,9 +114,6 @@ def agreement_generator_service(
         
     )
     
-    if document_name or document_path:
-        system_prompt += f"\n\nYou have access to the following document(s):\n {', '.join(document_name)}\n"
-
     if context:
         system_prompt += f"\n\nRelevant context:\n{context}"
 

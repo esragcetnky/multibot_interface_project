@@ -134,8 +134,6 @@ def send_query_to_middleware(
     access_key,
     chat_history = [],
     content_type="",
-    document_name = [],
-    document_path = [],     
     top_p=1.0,
     temperature=0.7,   
     personalai_prompt = "",    
@@ -171,8 +169,6 @@ def send_query_to_middleware(
             "access_key": access_key,            
             "chat_history": chat_history,            
             "content_type": content_type,
-            "document_name": document_name,            
-            "document_path": document_path,      
             "top_p": top_p,       
             "temperature": temperature,            
             "personalai_prompt": personalai_prompt,            
@@ -278,7 +274,7 @@ def start_vector_db_api_if_needed():
         # Start the Vector DB API FastAPI app as a subprocess
         cmd = [
             sys.executable, "-m", "uvicorn",
-            "components.vector_db_api:app",
+            "vector_db.main:app",
             "--host", "127.0.0.1",
             "--port", str(port),
             "--log-level", "info"

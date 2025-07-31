@@ -58,8 +58,6 @@ class QueryInput(BaseModel):
     access_key: Optional[str] = ""
     chat_history: Optional[List[dict]] = []
     content_type: Optional[str] = ""
-    document_name: Optional[list[str]] = []
-    document_path : Optional[list[str]] = []
     top_p: Optional[float] = 1.0
     temperature: Optional[float] = 0.7
     personalai_prompt: Optional[str] = ""
@@ -132,8 +130,6 @@ async def handle_query(query_input: QueryInput):
             - access_key (str, optional): Access key for authentication or authorization.
             - chat_history (list of dict, optional): List of previous chat messages (each with 'role' and 'content').
             - content_type (str, optional): MIME type of the uploaded document (e.g., 'application/pdf').
-            - document_name (str, optional): List of names of the uploaded document files.
-            - document_path (str, optional): List of paths to the uploaded document files.
             - top_p (float, optional): Nucleus sampling parameter for OpenAI completion.
             - temperature (float, optional): Sampling temperature for OpenAI completion.
             - personalai_prompt (str, optional): Custom prompt for personal AI context.
@@ -161,8 +157,6 @@ async def handle_query(query_input: QueryInput):
             access_key=query_input.access_key,         # Access/auth key
             chat_history=query_input.chat_history,     # Previous chat messages
             content_type=query_input.content_type,     # Uploaded document MIME type
-            document_name=query_input.document_name,   # Uploaded document file name
-            document_path =query_input.document_path,  # Path to the uploaded document file  
             top_p=query_input.top_p,                   # Nucleus sampling parameter
             temperature=query_input.temperature,       # Sampling temperature
             personalai_prompt=query_input.personalai_prompt, # Custom personal AI prompt
