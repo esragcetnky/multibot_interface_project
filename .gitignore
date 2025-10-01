@@ -9,35 +9,8 @@ env/
 # Ignore VS Code settings
 .vscode/
 
-# Ignore local environment and database folders
-environment
-chromadb_vectordb
-chromdb_rag_example
-chroma_langchain_db/
-models/
-
 # Ignore environment variable files
 .env/
 
-# Ignore log files
-logs/middleware.log
-logs/streamlit_app.log
-logs/grammar_helper.log
-logs/ask_me_anything.log
-logs/compare_files.log
-logs/agreement_generator.log
-logs/faiss_db.log
-logs/vectordb_api.log
-
-# Ignore Python bytecode cache folders
-middleware/__pycache__
-streamlit_app/__pycache__
-bots/grammar_helper/__pycache__
-bots/ask_me_anything/__pycache__
-bots/compare_files/__pycache__
-bots/agreement_generator/__pycache__
-components/__pycache__
-
-# database files
-data/uploads/*
-data/vectorstores/*
+__pycache__/
+.ipynb_checkpoints/
